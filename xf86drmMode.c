@@ -683,6 +683,7 @@ drm_public void drmModeFreeProperty(drmModePropertyPtr ptr)
 
 	drmFree(ptr->values);
 	drmFree(ptr->enums);
+	drmFree(ptr->blob_ids);
 	drmFree(ptr);
 }
 
