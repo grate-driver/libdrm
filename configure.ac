@@ -103,6 +103,11 @@ AC_ARG_ENABLE(install-test-programs,
 		  [Install test programs (default: no)]),
 		  [INSTALL_TESTS=$enableval], [INSTALL_TESTS=no])
 
+AC_ARG_ENABLE(tegra,
+	      AS_HELP_STRING([--enable-tegra],
+	      [Enable support for tegra's API (default: disabled)]),
+	      [TEGRA=$enableval], [TEGRA=no])
+
 dnl ===========================================================================
 dnl check compiler flags
 AC_DEFUN([LIBDRM_CC_TRY_FLAG], [
@@ -214,6 +219,11 @@ fi
 AM_CONDITIONAL(HAVE_FREEDRENO, [test "x$FREEDRENO" = xyes])
 if test "x$FREEDRENO" = xyes; then
 	AC_DEFINE(HAVE_FREEDRENO, 1, [Have freedreno support])
+fi
+
+AM_CONDITIONAL(HAVE_TEGRA, [test "x$TEGRA" = xyes])
+if test "x$TEGRA" = xyes; then
+	AC_DEFINE(HAVE_TEGRA, 1, [Have TEGRA support])
 fi
 
 AM_CONDITIONAL(HAVE_INSTALL_TESTS, [test "x$INSTALL_TESTS" = xyes])
@@ -380,6 +390,8 @@ AC_CONFIG_FILES([
 	exynos/libdrm_exynos.pc
 	freedreno/Makefile
 	freedreno/libdrm_freedreno.pc
+	tegra/Makefile
+	tegra/libdrm_tegra.pc
 	tests/Makefile
 	tests/modeprint/Makefile
 	tests/modetest/Makefile
@@ -404,4 +416,5 @@ echo "  Nouveau API    $NOUVEAU"
 echo "  OMAP API       $OMAP"
 echo "  EXYNOS API     $EXYNOS"
 echo "  Freedreno API  $FREEDRENO"
+echo "  TEGRA API      $TEGRA"
 echo ""
