@@ -8,6 +8,9 @@ libdrm_tegra_la_LDFLAGS = -version-number 0:0:0 -no-undefined
 libdrm_tegra_la_LIBADD = ../libdrm.la @PTHREADSTUBS_LIBS@
 
 libdrm_tegra_la_SOURCES = \
+	channel.c \
+	job.c \
+	private.h \
 	tegra.c
 
 libdrm_tegraincludedir = ${includedir}/libdrm
