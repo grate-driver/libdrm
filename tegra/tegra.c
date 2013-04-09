@@ -173,7 +173,6 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 
 	free(relocs);
 	free(cmdbufs);
-	free(fence);
 
 	if (!err) {
 		fence->syncpt = job->syncpt;
