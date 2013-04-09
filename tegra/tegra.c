@@ -339,10 +339,12 @@ void drm_tegra_bo_put(struct drm_tegra_bo *bo)
 
 int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 {
-	struct drm_tegra *drm = bo->drm;
+	if (!bo)
+		return -EINVAL;
 
 	if (!bo->map) {
 		struct drm_tegra_gem_mmap args;
+		struct drm_tegra *drm = bo->drm;
 		int err;
 
 		memset(&args, 0, sizeof(args));
