@@ -180,6 +180,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		*fencep = fence;
 	} else {
 		free(fence);
+		*fencep = NULL;
 	}
 
 	return err;
