@@ -370,3 +370,15 @@ int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 
 	return 0;
 }
+
+int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
+{
+	if (!bo || !bo->map)
+		return -EINVAL;
+
+	if (munmap(bo->map, bo->size))
+		return -errno;
+
+	bo->map = NULL;
+	return 0;
+}

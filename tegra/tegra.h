@@ -79,6 +79,7 @@ int drm_tegra_bo_open(struct drm_tegra *drm, uint32_t name,
 int drm_tegra_bo_get_handle(struct drm_tegra_bo *bo, uint32_t *handle);
 int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name);
 int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr);
+int drm_tegra_bo_unmap(struct drm_tegra_bo *bo);
 struct drm_tegra_bo *drm_tegra_bo_get(struct drm_tegra_bo *bo);
 void drm_tegra_bo_put(struct drm_tegra_bo *bo);
 
