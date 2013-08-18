@@ -67,6 +67,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		     struct host1x_fence **fencep);
 int drm_tegra_wait(struct drm_tegra *drm, struct host1x_fence *fence,
 		   uint32_t timeout);
+int drm_tegra_signaled(struct drm_tegra *drm, struct host1x_fence *fence);
 
 int drm_tegra_channel_open(struct drm_tegra *drm, enum host1x_class client,
 			   struct drm_tegra_channel **channelp);
