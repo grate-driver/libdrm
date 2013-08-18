@@ -213,6 +213,30 @@ int drm_tegra_wait(struct drm_tegra *drm, struct host1x_fence *fence,
 	return 0;
 }
 
+int drm_tegra_signaled(struct drm_tegra *drm, struct host1x_fence *fence)
+{
+	struct drm_tegra_syncpt_read args;
+	int err;
+
+	if (!drm)
+		return -EINVAL;
+
+	if (!fence)
+		return 0;
+
+	memset(&args, 0, sizeof(args));
+	args.id = fence->syncpt->id;
+
+	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_SYNCPT_READ, &args);
+	if (err < 0) {
+		fprintf(stderr, "ioctl(DRM_IOCTL_TEGRA_SYNCPT_READ) failed: %d\n",
+			errno);
+		return -errno;
+	}
+
+	return fence->value <= args.value;
+}
+
 int drm_tegra_bo_create(struct drm_tegra *drm, uint32_t flags, uint32_t size,
 			struct drm_tegra_bo **bop)
 {
