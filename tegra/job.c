@@ -71,6 +71,27 @@ void host1x_job_free(struct host1x_job *job)
 	free(job);
 }
 
+int host1x_job_reset(struct host1x_job *job)
+{
+	int i;
+
+	if (!job)
+		return -EINVAL;
+
+	for (i = 0; i < job->num_pushbufs; i++) {
+		struct host1x_pushbuf *pb = &job->pushbufs[i];
+		drm_tegra_bo_put(pb->bo);
+		free(pb->relocs);
+	}
+	free(job->pushbufs);
+
+	job->pushbufs = NULL;
+	job->num_pushbufs = 0;
+	job->increments = 0;
+
+	return 0;
+}
+
 int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 		      unsigned long offset, struct host1x_pushbuf **pbp)
 {

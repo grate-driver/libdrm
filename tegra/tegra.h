@@ -87,6 +87,7 @@ void drm_tegra_bo_put(struct drm_tegra_bo *bo);
 int host1x_job_create(struct drm_tegra_channel *channel,
 		      struct host1x_job **jobp);
 void host1x_job_free(struct host1x_job *job);
+int host1x_job_reset(struct host1x_job *job);
 int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 		      unsigned long offset, struct host1x_pushbuf **pbp);
 int host1x_pushbuf_push(struct host1x_pushbuf *pb, uint32_t word);
