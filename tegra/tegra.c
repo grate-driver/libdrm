@@ -171,6 +171,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		err = -errno;
 	}
 
+	host1x_job_reset(job);
 	free(relocs);
 	free(cmdbufs);
 
