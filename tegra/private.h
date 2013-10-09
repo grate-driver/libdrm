@@ -25,6 +25,7 @@ struct drm_tegra {
 
 struct host1x_syncpt {
 	uint32_t id;
+	int base_id;
 };
 
 #define HOST1X_MAX_SYNCPOINTS 32

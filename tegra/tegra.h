@@ -74,6 +74,8 @@ int drm_tegra_signaled(struct drm_tegra *drm, struct host1x_fence *fence);
 int drm_tegra_channel_open(struct drm_tegra *drm, enum host1x_class client,
 			   struct drm_tegra_channel **channelp);
 int drm_tegra_channel_close(struct drm_tegra_channel *channel);
+int drm_tegra_channel_get_syncpt_idx(struct drm_tegra_channel *channel);
+int drm_tegra_channel_get_syncpt_base(struct drm_tegra_channel *channel);
 
 int drm_tegra_bo_create(struct drm_tegra *drm, uint32_t flags, uint32_t size,
 			struct drm_tegra_bo **bop);

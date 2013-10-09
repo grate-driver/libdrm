@@ -36,19 +36,20 @@
 static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 {
 	struct drm_tegra *drm = channel->drm;
-	struct drm_tegra_get_syncpt args;
 	unsigned int i;
 
 	for (i = 0; i < HOST1X_MAX_SYNCPOINTS; i++) {
+		struct drm_tegra_get_syncpt get_id;
+		struct drm_tegra_get_syncpt_base get_base;
 		struct host1x_syncpt *syncpt;
 		unsigned int size;
 		int err;
 
-		memset(&args, 0, sizeof(args));
-		args.context = channel->context;
-		args.index = i;
+		memset(&get_id, 0, sizeof(get_id));
+		get_id.context = channel->context;
+		get_id.index = i;
 
-		err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_GET_SYNCPT, &args);
+		err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_GET_SYNCPT, &get_id);
 		if (err < 0)
 			break;
 
@@ -64,7 +65,16 @@ static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 
 		syncpt = &channel->syncpts[i];
 		memset(syncpt, 0, sizeof(syncpt));
-		syncpt->id = args.id;
+		syncpt->id = get_id.id;
+
+		memset(&get_base, 0, sizeof(get_base));
+		get_base.context = channel->context;
+		get_base.index = i;
+
+		if (!drmIoctl(drm->fd, DRM_IOCTL_TEGRA_GET_SYNCPT_BASE, &get_base))
+			syncpt->base_id = get_base.base_id;
+		else
+			syncpt->base_id = -1;
 	}
 
 	channel->num_syncpts = i;
@@ -111,4 +121,14 @@ int drm_tegra_channel_open(struct drm_tegra *drm, enum host1x_class client,
 
 int drm_tegra_channel_close(struct drm_tegra_channel *channel)
 {
+}
+
+int drm_tegra_channel_get_syncpt_idx(struct drm_tegra_channel *channel)
+{
+	return channel->syncpts[0].id;
+}
+
+int drm_tegra_channel_get_syncpt_base(struct drm_tegra_channel *channel)
+{
+	return channel->syncpts[0].base_id;
 }
