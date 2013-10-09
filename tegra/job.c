@@ -167,5 +167,5 @@ int host1x_pushbuf_relocate(struct host1x_pushbuf *pb,
 int host1x_pushbuf_sync(struct host1x_pushbuf *pb, enum host1x_syncpt_cond cond)
 {
 	host1x_pushbuf_push(pb, cond << 8 | pb->syncpt->id);
-	pb->increments++;
+	return pb->increments++;
 }
