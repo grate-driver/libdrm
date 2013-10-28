@@ -422,6 +422,190 @@ destroy:
 	return -1;
 }
 
+static int tegra_2d_fill(struct tegra_stream *stream, struct tegra_bo *bo, int pitch, uint32_t color, int x, int y, int w, int h)
+{
+	uint32_t controlmain;
+
+#define PUSH(x) \
+	if (tegra_stream_push(stream, x) < 0) \
+		goto failed;
+
+	if (tegra_stream_push_setclass(stream, HOST1X_CLASS_GR2D) < 0) {
+		fprintf(stderr, "push_setclass failed\n");
+		return -1;
+	}
+
+	PUSH(host1x_opcode_mask(0x9, 0x9));
+	PUSH(0x0000003a);  /* 0x009 - trigger */
+	PUSH(0x00000000);  /* 0x00c - cmdsel */
+
+	PUSH(host1x_opcode_mask(0x1e, 0x7));
+	PUSH(0x00000000);  /* 0x01e - controlsecond */
+	controlmain  = 1 << 6;  /* fill mode */
+	controlmain |= 1 << 2;  /* turbofill */
+	controlmain |= 2 << 16; /* 4 bytes per pixel */
+	PUSH(controlmain); /* 0x01f - controlmain */
+	PUSH(0x000000cc);  /* 0x020 - ropfade */
+
+	PUSH(host1x_opcode_mask(0x2b, 0x09));
+	if (tegra_stream_push_reloc(stream, bo, 0) < 0) { /* 0x02b - dstba */
+		fprintf(stderr, "push_reloc failed\n");
+		return -1;
+	}
+	PUSH(pitch);       /* 0x02e - dstst */
+
+	PUSH(host1x_opcode_nonincr(0x35, 1));
+	PUSH(color);       /* 0x035 - srcfgc */
+
+	PUSH(host1x_opcode_nonincr(0x46, 1));
+	PUSH(0);           /* 0x046 - tilemode */
+
+	PUSH(host1x_opcode_mask(0x38, 0x05));
+	PUSH(h << 16 | w); /* 0x038 - dstsize */
+	PUSH(y << 16 | x); /* 0x03a - dstps */
+	return 0;
+
+failed:
+	fprintf(stderr, "push failed!\n");
+	return -1;
+}
+
+/*
+ * test_gr2d_wait_base(channel) - Make host to do a wait against a base
+ */
+
+int test_gr2d_wait_base(struct tegra_channel *channel)
+{
+	int fd = channel->dev->fd;
+	struct tegra_stream *stream = NULL;
+	struct tegra_fence fence;
+	unsigned int id, base_id;
+	struct tegra_drm_get_syncpt get_syncpt_args = {channel->context, 0, 0};
+	struct tegra_drm_get_syncpt_base get_base_args = {channel->context, 0, 0};
+	struct tegra_bo *bo;
+	unsigned int value_0, value_1;
+	uint32_t *pixels;
+	int clears = 16;
+	int i;
+
+	static const uint32_t colors[4] = {
+		0xFF00FF00,
+		0x00FF00FF,
+		0xFFFF0000,
+		0x0000FFFF
+	};
+
+
+	/* Allocate memory */
+	if (!(bo = tegra_bo_allocate(channel->dev, 4 * 1024 * 1024, 4)))
+		return -1;
+
+	/* Note: The stream library does not yet have additions for bases.
+	 * Get base here */
+
+	if (drmIoctl(fd, DRM_IOCTL_TEGRA_GET_SYNCPT, &get_syncpt_args))
+		return -1;
+
+	if (drmIoctl(fd, DRM_IOCTL_TEGRA_GET_SYNCPT_BASE, &get_base_args)) {
+		printf("The device does not support syncpoint base. skipping test %s\n",
+		       __func__);
+		return 0;
+	}
+
+	id = get_syncpt_args.id;
+	base_id = get_base_args.base_id;
+
+	/*
+	 * Stream construction
+	 */
+
+	/* Create stream */
+	if (!(stream = tegra_stream_create(channel, 0, 0, 0)))
+		return -1;
+
+	/* Start constructing a cmd buffer */
+	if (tegra_stream_begin(stream, 4096, NULL, 0, clears,
+		HOST1X_CLASS_HOST1X))
+		goto destroy;
+
+	for (i = 0; i < clears; ++i) {
+		/* Clear the bo */
+		int x, y, w, h;
+
+		x = y = i;
+		w = h = 1024 - 2 * i;
+
+		if (tegra_2d_fill(stream, bo, 4 * 1024, colors[i & 3], x, y, w, h) < 0)
+			goto destroy;
+
+		if (tegra_stream_push_incr(stream, 1))
+			goto destroy;
+
+		/* stall host1x until gr2d is done */
+		if (tegra_stream_push_setclass(stream, HOST1X_CLASS_HOST1X)) {
+			fprintf(stderr, "push_setclass failed\n");
+			goto destroy;
+		}
+
+		/* Wait for syncpoint increments */
+
+		if (tegra_stream_push(stream, host1x_opcode_nonincr(
+			host1x_uclass_wait_syncpt_base_r(), 1)))
+			goto destroy;
+
+		if (tegra_stream_push(stream,
+		    host1x_uclass_wait_syncpt_base_indx_f(id) |
+		    host1x_uclass_wait_syncpt_base_base_indx_f(base_id) |
+		    host1x_uclass_wait_syncpt_base_offset_f(1)))
+			goto destroy;
+	}
+
+	/* End and flush */
+	if (tegra_stream_end(stream))
+		goto destroy;
+	if (tegra_stream_flush(stream, &fence))
+		goto destroy;
+	if (!tegra_fence_is_valid(&fence))
+		goto destroy;
+
+	/* This should finish */
+	if (tegra_fence_waitex(channel, &fence, 15000, NULL))
+		goto destroy;
+
+	pixels = tegra_bo_map(bo);
+	if (!pixels)
+		goto destroy;
+
+	for (i = 0; i < clears; ++i) {
+		uint32_t color = colors[i & 3];
+
+		/* check that the corners of each clear-rectangle matches */
+		if (pixels[1024 * i + i] != color ||
+		    pixels[1024 * i + 1023 - i] != color ||
+		    pixels[1024 * (1023 - i) + i] != color ||
+		    pixels[1024 * (1023 - i) + (1023 - i)] != color)
+			goto destroy;
+
+		/* check that the mid-edges of each clear-rectangle matches */
+		if (pixels[1024 * i + 512] != color ||
+		    pixels[1024 * (1023 - i) + 512] != color ||
+		    pixels[1024 * 512 + i] != color ||
+		    pixels[1024 * 512 + 1023 - i] != color)
+			goto destroy;
+	}
+
+	tegra_bo_free(bo);
+	tegra_stream_destroy(stream);
+	return 0;
+
+destroy_wait_timeout:
+	tegra_fence_waitex(channel, &fence, 15000, NULL);
+destroy:
+	tegra_stream_destroy(stream);
+	return -1;
+}
+
+
 /*
  * test_wait_base(channel) - Make host to do a wait against a base
  */
@@ -929,6 +1113,7 @@ struct test_data tests[] = {
 	TEST(test_wait_current_value),
 	FAILING_TEST(test_wait_future_value),
 	TEST(test_host_wait),
+	TEST(test_gr2d_wait_base),
 	TEST(test_wait_base),
 	TEST(test_many_small_submits),
 	TEST(test_huge_submit),
