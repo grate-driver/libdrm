@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "private.h"
 
@@ -170,6 +171,7 @@ int host1x_pushbuf_relocate(struct host1x_pushbuf *pb,
 
 int host1x_pushbuf_sync(struct host1x_pushbuf *pb, enum host1x_syncpt_cond cond)
 {
+	assert(cond < HOST1X_SYNCPT_COND_MAX);
 	host1x_pushbuf_push(pb, cond << 8 | pb->syncpt->id);
 	return pb->increments++;
 }
