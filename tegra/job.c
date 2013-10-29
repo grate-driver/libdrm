@@ -107,6 +107,9 @@ int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 	if (err < 0)
 		return err;
 
+	if (job->num_pushbufs)
+		job->increments += job->pushbufs[job->num_pushbufs - 1].increments;
+
 	size = (job->num_pushbufs + 1) * sizeof(*pb);
 
 	pb = realloc(job->pushbufs, size);
@@ -122,6 +125,7 @@ int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 	pb->bo = drm_tegra_bo_get(bo);
 	pb->ptr = ptr + offset;
 	pb->offset = offset;
+	pb->increments = job->increments;
 
 	*pbp = pb;
 

@@ -89,7 +89,6 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	struct drm_tegra_cmdbuf *cmdbufs;
 	struct drm_tegra_syncpt syncpt;
 	struct drm_tegra_submit args;
-	unsigned int increments = 0;
 	struct host1x_fence *fence;
 	int err;
 
@@ -117,13 +116,12 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		cmdbuf->offset = pushbuf->offset;
 		cmdbuf->words = pushbuf->length;
 
-		increments += pushbuf->increments;
 		num_relocs += pushbuf->num_relocs;
 	}
 
 	memset(&syncpt, 0, sizeof(syncpt));
 	syncpt.id = job->syncpt->id;
-	syncpt.incrs = increments;
+	syncpt.incrs = job->increments;
 
 	relocs = calloc(num_relocs, sizeof(*relocs));
 	if (!relocs) {
