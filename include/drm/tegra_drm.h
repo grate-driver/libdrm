@@ -25,6 +25,9 @@ struct drm_tegra_gem_create {
 	__u32 handle;
 };
 
+#define DRM_TEGRA_GEM_CREATE_TILED     (1 << 0)
+#define DRM_TEGRA_GEM_CREATE_BOTTOM_UP (1 << 1)
+
 struct drm_tegra_gem_mmap {
 	__u32 handle;
 	__u32 offset;
