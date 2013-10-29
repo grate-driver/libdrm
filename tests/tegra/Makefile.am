@@ -7,6 +7,6 @@ LDADD = $(top_builddir)/libdrm.la \
 	$(top_builddir)/tegra/libdrm_tegra.la
 
 
-TESTS = tegra_host1x
+TESTS = tegra_host1x tegra_gr2d
 
 check_PROGRAMS = $(TESTS)
