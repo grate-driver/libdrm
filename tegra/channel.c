@@ -69,11 +69,6 @@ static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 
 	channel->num_syncpts = i;
 
-	fprintf(stdout, "syncpoints: %u\n", channel->num_syncpts);
-
-	for (i = 0; i < channel->num_syncpts; i++)
-		fprintf(stdout, "  %u: %u\n", i, channel->syncpts[i].id);
-
 	return 0;
 }
 
