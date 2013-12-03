@@ -133,6 +133,9 @@ int host1x_pushbuf_push(struct host1x_pushbuf *pb, uint32_t word)
 	if (!pb)
 		return -EINVAL;
 
+	if (pb->length * sizeof(uint32_t) >= pb->bo->size)
+		return -EINVAL;
+
 	*pb->ptr++ = word;
 	pb->length++;
 
