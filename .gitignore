@@ -49,6 +49,7 @@ libdrm_radeon.pc
 libdrm_omap.pc
 libdrm_exynos.pc
 libdrm_freedreno.pc
+libdrm_tegra.pc
 libkms.pc
 libtool
 ltmain.sh
