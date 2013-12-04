@@ -166,7 +166,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 
 	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_SUBMIT, &args);
 	if (err < 0) {
-		fprintf(stderr, "ioctl(DRM_IOCTL_TEGRA_SUBMIT) failed: %d\n",
+		drmMsg("ioctl(DRM_IOCTL_TEGRA_SUBMIT) failed: %d\n",
 			errno);
 		err = -errno;
 	}
@@ -206,7 +206,7 @@ int drm_tegra_wait(struct drm_tegra *drm, struct host1x_fence *fence,
 
 	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_SYNCPT_WAIT, &args);
 	if (err < 0) {
-		fprintf(stderr, "ioctl(DRM_IOCTL_TEGRA_SYNCPT_WAIT) failed: %d\n",
+		drmMsg("ioctl(DRM_IOCTL_TEGRA_SYNCPT_WAIT) failed: %d\n",
 			errno);
 		return -errno;
 	}
@@ -230,7 +230,7 @@ int drm_tegra_signaled(struct drm_tegra *drm, struct host1x_fence *fence)
 
 	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_SYNCPT_READ, &args);
 	if (err < 0) {
-		fprintf(stderr, "ioctl(DRM_IOCTL_TEGRA_SYNCPT_READ) failed: %d\n",
+		drmMsg("ioctl(DRM_IOCTL_TEGRA_SYNCPT_READ) failed: %d\n",
 			errno);
 		return -errno;
 	}
