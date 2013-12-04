@@ -75,4 +75,12 @@ struct host1x_job {
 	unsigned int num_pushbufs;
 };
 
+#if 1
+# define TRACE_IOCTL(fmt, ...) drmMsg("TEGRA IOCTL: " fmt, ##__VA_ARGS__)
+# define TRACE_PUSH(fmt, ...) drmMsg("TEGRA PUSH: " fmt, ##__VA_ARGS__)
+#else
+# define TRACE_IOCTL(fmt, ...)
+# define TRACE_PUSH(fmt, ...)
+#endif
+
 #endif

@@ -139,6 +139,8 @@ int host1x_pushbuf_push(struct host1x_pushbuf *pb, uint32_t word)
 	*pb->ptr++ = word;
 	pb->length++;
 
+	TRACE_PUSH("PUSH: %08x\n", word);
+
 	return 0;
 }
 

@@ -50,6 +50,8 @@ static void drm_tegra_bo_free(struct drm_tegra_bo *bo)
 	memset(&args, 0, sizeof(args));
 	args.handle = bo->handle;
 
+	TRACE_IOCTL("gem_close: %x\n", args.handle);
+
 	drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args);
 
 	free(bo);
@@ -117,6 +119,8 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		cmdbuf->offset = pushbuf->offset;
 		cmdbuf->words = pushbuf->length;
 
+		TRACE_IOCTL("cmdbuf: %x %d %d\n", cmdbuf->handle, cmdbuf->offset, cmdbuf->words);
+
 		increments += pushbuf->increments;
 		num_relocs += pushbuf->num_relocs;
 	}
@@ -124,6 +128,8 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	memset(&syncpt, 0, sizeof(syncpt));
 	syncpt.id = job->syncpt->id;
 	syncpt.incrs = increments;
+
+	TRACE_IOCTL("syncpt: %d %d\n", syncpt.id, syncpt.incrs);
 
 	relocs = calloc(num_relocs, sizeof(*relocs));
 	if (!relocs) {
@@ -146,6 +152,8 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 			reloc->target.offset = r->target_offset;
 			reloc->shift = r->shift;
 
+			TRACE_IOCTL("reloc: %x %d %x %d %d\n", reloc->cmdbuf.handle, reloc->cmdbuf.offset, reloc->target.handle, reloc->target.offset, reloc->shift);
+
 			reloc++;
 		}
 	}
@@ -163,6 +171,8 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	args.cmdbufs = (unsigned long)cmdbufs;
 	args.relocs = (unsigned long)relocs;
 	args.waitchks = 0;
+
+	TRACE_IOCTL("submit: %llx %d %d %d %d %x %d\n", args.context, args.num_syncpts, args.num_cmdbufs, args.num_relocs, args.num_waitchks, args.waitchk_mask, args.timeout);
 
 	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_SUBMIT, &args);
 	if (err < 0) {
@@ -204,6 +214,8 @@ int drm_tegra_wait(struct drm_tegra *drm, struct host1x_fence *fence,
 	args.thresh = fence->value;
 	args.timeout = timeout;
 
+	TRACE_IOCTL("wait: %d %d %d\n", args.id, args.thresh, args.timeout);
+
 	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_SYNCPT_WAIT, &args);
 	if (err < 0) {
 		drmMsg("ioctl(DRM_IOCTL_TEGRA_SYNCPT_WAIT) failed: %d\n",
@@ -227,6 +239,8 @@ int drm_tegra_signaled(struct drm_tegra *drm, struct host1x_fence *fence)
 
 	memset(&args, 0, sizeof(args));
 	args.id = fence->syncpt->id;
+
+	TRACE_IOCTL("syncpt_read: %d", args.id);
 
 	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_SYNCPT_READ, &args);
 	if (err < 0) {
@@ -261,6 +275,8 @@ int drm_tegra_bo_create(struct drm_tegra *drm, uint32_t flags, uint32_t size,
 	memset(&args, 0, sizeof(args));
 	args.flags = flags;
 	args.size = size;
+
+	TRACE_IOCTL("gem_create: %d %x\n", size, flags);
 
 	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_CREATE, &args,
 				  sizeof(args));
@@ -299,6 +315,8 @@ int drm_tegra_bo_open(struct drm_tegra *drm, uint32_t name,
 	memset(&args, 0, sizeof(args));
 	args.name = name;
 
+	TRACE_IOCTL("gem_open: %x\n", name);
+
 	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_OPEN, &args);
 	if (err < 0) {
 		free(bo);
@@ -335,6 +353,8 @@ int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
 
 		memset(&args, 0, sizeof(args));
 		args.handle = bo->handle;
+
+		TRACE_IOCTL("gem_flink: %x\n", args.handle);
 
 		err = drmIoctl(bo->drm->fd, DRM_IOCTL_GEM_FLINK, &args);
 		if (err < 0)
@@ -374,6 +394,8 @@ int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 
 		memset(&args, 0, sizeof(args));
 		args.handle = bo->handle;
+
+		TRACE_IOCTL("gem_mmap: %x\n", args.handle);
 
 		err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_MMAP, &args,
 					  sizeof(args));
