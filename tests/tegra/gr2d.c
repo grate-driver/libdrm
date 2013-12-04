@@ -173,6 +173,9 @@ do { \
 #undef CMP
 	}
 
+	drm_tegra_bo_put(dst);
+	drm_tegra_bo_put(cmdbuf);
+
 	return 0;
 }
 
