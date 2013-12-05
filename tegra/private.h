@@ -23,9 +23,7 @@ struct drm_tegra {
 	int fd;
 };
 
-struct host1x_syncpt {
-	uint32_t id;
-};
+typedef uint32_t host1x_syncpt_t;
 
 #define HOST1X_MAX_SYNCPOINTS 32
 
@@ -35,7 +33,7 @@ struct drm_tegra_channel {
 	enum host1x_class client;
 	uint64_t context;
 
-	struct host1x_syncpt *syncpts;
+	host1x_syncpt_t *syncpts;
 	unsigned int num_syncpts;
 };
 
@@ -47,7 +45,7 @@ struct host1x_pushbuf_reloc {
 };
 
 struct host1x_pushbuf {
-	struct host1x_syncpt *syncpt;
+	host1x_syncpt_t syncpt;
 	unsigned int increments;
 
 	struct drm_tegra_bo *bo;
@@ -61,14 +59,14 @@ struct host1x_pushbuf {
 };
 
 struct host1x_fence {
-	struct host1x_syncpt *syncpt;
+	host1x_syncpt_t syncpt;
 	uint32_t value;
 };
 
 struct host1x_job {
 	struct drm_tegra_channel *channel;
 
-	struct host1x_syncpt *syncpt;
+	host1x_syncpt_t syncpt;
 	unsigned int increments;
 
 	struct host1x_pushbuf *pushbufs;

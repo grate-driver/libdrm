@@ -40,7 +40,7 @@ static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 	unsigned int i;
 
 	for (i = 0; i < HOST1X_MAX_SYNCPOINTS; i++) {
-		struct host1x_syncpt *syncpt;
+		host1x_syncpt_t *syncpt;
 		unsigned int size;
 		int err;
 
@@ -64,9 +64,7 @@ static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 
 		channel->syncpts = syncpt;
 
-		syncpt = &channel->syncpts[i];
-		memset(syncpt, 0, sizeof(syncpt));
-		syncpt->id = args.id;
+		channel->syncpts[i] = args.id;
 	}
 
 	channel->num_syncpts = i;

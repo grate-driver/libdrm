@@ -126,7 +126,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	}
 
 	memset(&syncpt, 0, sizeof(syncpt));
-	syncpt.id = job->syncpt->id;
+	syncpt.id = job->syncpt;
 	syncpt.incrs = increments;
 
 	TRACE_IOCTL("syncpt: %d %d\n", syncpt.id, syncpt.incrs);
@@ -210,7 +210,7 @@ int drm_tegra_wait(struct drm_tegra *drm, struct host1x_fence *fence,
 		return 0;
 
 	memset(&args, 0, sizeof(args));
-	args.id = fence->syncpt->id;
+	args.id = fence->syncpt;
 	args.thresh = fence->value;
 	args.timeout = timeout;
 
@@ -238,7 +238,7 @@ int drm_tegra_signaled(struct drm_tegra *drm, struct host1x_fence *fence)
 		return 0;
 
 	memset(&args, 0, sizeof(args));
-	args.id = fence->syncpt->id;
+	args.id = fence->syncpt;
 
 	TRACE_IOCTL("syncpt_read: %d", args.id);
 

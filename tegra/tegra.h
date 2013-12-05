@@ -55,7 +55,6 @@ enum host1x_syncpt_cond {
 };
 
 struct host1x_pushbuf;
-struct host1x_syncpt;
 struct host1x_fence;
 struct host1x_job;
 

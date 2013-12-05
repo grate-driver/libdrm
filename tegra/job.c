@@ -49,7 +49,7 @@ int host1x_job_create(struct drm_tegra_channel *channel,
 	if (!job)
 		return -ENOMEM;
 
-	job->syncpt = &channel->syncpts[0];
+	job->syncpt = channel->syncpts[0];
 	job->channel = channel;
 
 	*jobp = job;
@@ -176,7 +176,7 @@ int host1x_pushbuf_sync(struct host1x_pushbuf *pb, enum host1x_syncpt_cond cond)
 	if (cond >= HOST1X_SYNCPT_COND_MAX)
 		return -EINVAL;
 
-	err = host1x_pushbuf_push(pb, cond << 8 | pb->syncpt->id);
+	err = host1x_pushbuf_push(pb, cond << 8 | pb->syncpt);
 	if (!err)
 		pb->increments++;
 	return err;
