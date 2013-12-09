@@ -55,7 +55,7 @@ struct host1x_pushbuf {
 	struct host1x_pushbuf_reloc *relocs;
 	unsigned int num_relocs;
 
-	uint32_t *ptr;
+	uint32_t *ptr, *end;
 };
 
 struct host1x_fence {

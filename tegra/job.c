@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "private.h"
 
@@ -121,6 +122,7 @@ int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 	pb->syncpt = job->syncpt;
 	pb->bo = drm_tegra_bo_get(bo);
 	pb->ptr = ptr + offset;
+	pb->end = pb->ptr + pb->bo->size / sizeof(uint32_t);
 	pb->offset = offset;
 
 	*pbp = pb;
@@ -133,7 +135,8 @@ int host1x_pushbuf_push(struct host1x_pushbuf *pb, uint32_t word)
 	if (!pb)
 		return -EINVAL;
 
-	if (pb->length * sizeof(uint32_t) >= pb->bo->size)
+	assert(pb->ptr <= pb->end);
+	if (pb->ptr == pb->end)
 		return -EINVAL;
 
 	*pb->ptr++ = word;
