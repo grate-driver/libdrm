@@ -63,7 +63,6 @@ struct host1x_fence {
 struct host1x_job {
 	struct drm_tegra_channel *channel;
 
-	host1x_syncpt_t syncpt;
 	unsigned int increments;
 
 	struct host1x_pushbuf *pushbufs;

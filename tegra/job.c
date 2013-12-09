@@ -50,7 +50,6 @@ int host1x_job_create(struct drm_tegra_channel *channel,
 	if (!job)
 		return -ENOMEM;
 
-	job->syncpt = channel->syncpt;
 	job->channel = channel;
 
 	*jobp = job;
@@ -119,7 +118,7 @@ int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 	pb = &job->pushbufs[job->num_pushbufs++];
 	memset(pb, 0, sizeof(*pb));
 
-	pb->syncpt = job->syncpt;
+	pb->syncpt = job->channel->syncpt;
 	pb->bo = drm_tegra_bo_get(bo);
 	pb->ptr = ptr + offset;
 	pb->end = pb->ptr + pb->bo->size / sizeof(uint32_t);

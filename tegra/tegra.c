@@ -126,7 +126,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	}
 
 	memset(&syncpt, 0, sizeof(syncpt));
-	syncpt.id = job->syncpt;
+	syncpt.id = job->channel->syncpt;
 	syncpt.incrs = increments;
 
 	TRACE_IOCTL("syncpt: %d %d\n", syncpt.id, syncpt.incrs);
@@ -186,7 +186,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	free(cmdbufs);
 
 	if (!err) {
-		fence->syncpt = job->syncpt;
+		fence->syncpt = job->channel->syncpt;
 		fence->value = args.fence;
 		*fencep = fence;
 	} else {
