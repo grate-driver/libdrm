@@ -50,7 +50,7 @@ static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 
 		TRACE_IOCTL("get_syncpt: %llx %d\n", args.context, args.index);
 
-		err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_GET_SYNCPT, &args);
+		err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GET_SYNCPT, &args, sizeof(args));
 		if (err < 0)
 			break;
 
@@ -90,7 +90,7 @@ int drm_tegra_channel_open(struct drm_tegra *drm, enum host1x_class client,
 
 	TRACE_IOCTL("channel_open: %d\n", args.client);
 
-	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_OPEN_CHANNEL, &args);
+	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_OPEN_CHANNEL, &args, sizeof(args));
 	if (err < 0)
 		return -errno;
 
