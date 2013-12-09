@@ -37,37 +37,19 @@ static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 {
 	struct drm_tegra *drm = channel->drm;
 	struct drm_tegra_get_syncpt args;
-	unsigned int i;
+	int err;
 
-	for (i = 0; i < HOST1X_MAX_SYNCPOINTS; i++) {
-		host1x_syncpt_t *syncpt;
-		unsigned int size;
-		int err;
+	memset(&args, 0, sizeof(args));
+	args.context = channel->context;
+	args.index = 0;
 
-		memset(&args, 0, sizeof(args));
-		args.context = channel->context;
-		args.index = i;
+	TRACE_IOCTL("get_syncpt: %llx %d\n", args.context, args.index);
 
-		TRACE_IOCTL("get_syncpt: %llx %d\n", args.context, args.index);
+	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GET_SYNCPT, &args, sizeof(args));
+	if (err < 0)
+		return err;
 
-		err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GET_SYNCPT, &args, sizeof(args));
-		if (err < 0)
-			break;
-
-		size = (i + 1) * sizeof(*syncpt);
-
-		syncpt = realloc(channel->syncpts, size);
-		if (!syncpt) {
-			free(channel->syncpts);
-			return -ENOMEM;
-		}
-
-		channel->syncpts = syncpt;
-
-		channel->syncpts[i] = args.id;
-	}
-
-	channel->num_syncpts = i;
+	channel->syncpt = args.id;
 
 	return 0;
 }

@@ -50,7 +50,7 @@ int host1x_job_create(struct drm_tegra_channel *channel,
 	if (!job)
 		return -ENOMEM;
 
-	job->syncpt = channel->syncpts[0];
+	job->syncpt = channel->syncpt;
 	job->channel = channel;
 
 	*jobp = job;
