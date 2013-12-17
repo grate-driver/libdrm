@@ -31,12 +31,6 @@
 
 #include "private.h"
 
-static inline unsigned long drm_tegra_bo_get_offset(struct drm_tegra_bo *bo,
-						    void *ptr)
-{
-	return (unsigned long)ptr - (unsigned long)bo->map;
-}
-
 int host1x_job_create(struct drm_tegra_channel *channel,
 		      struct host1x_job **jobp)
 {
@@ -127,59 +121,4 @@ int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 	*pbp = pb;
 
 	return 0;
-}
-
-int host1x_pushbuf_push(struct host1x_pushbuf *pb, uint32_t word)
-{
-	if (!pb)
-		return -EINVAL;
-
-	assert(pb->ptr <= pb->end);
-	if (pb->ptr == pb->end)
-		return -EINVAL;
-
-	*pb->ptr++ = word;
-	pb->length++;
-
-	TRACE_PUSH("PUSH: %08x\n", word);
-
-	return 0;
-}
-
-int host1x_pushbuf_relocate(struct host1x_pushbuf *pb,
-			    struct drm_tegra_bo *target, unsigned long offset,
-			    unsigned long shift)
-{
-	struct host1x_pushbuf_reloc *reloc;
-	size_t size;
-
-	size = (pb->num_relocs + 1) * sizeof(*reloc);
-
-	reloc = realloc(pb->relocs, size);
-	if (!reloc)
-		return -ENOMEM;
-
-	pb->relocs = reloc;
-
-	reloc = &pb->relocs[pb->num_relocs++];
-
-	reloc->source_offset = drm_tegra_bo_get_offset(pb->bo, pb->ptr);
-	reloc->target_handle = target->handle;
-	reloc->target_offset = offset;
-	reloc->shift = shift;
-
-	return 0;
-}
-
-int host1x_pushbuf_sync(struct host1x_pushbuf *pb, enum host1x_syncpt_cond cond)
-{
-	int err;
-
-	if (cond >= HOST1X_SYNCPT_COND_MAX)
-		return -EINVAL;
-
-	err = host1x_pushbuf_push(pb, cond << 8 | pb->syncpt);
-	if (!err)
-		pb->increments++;
-	return err;
 }

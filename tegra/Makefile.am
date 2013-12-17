@@ -10,6 +10,7 @@ libdrm_tegra_la_LIBADD = ../libdrm.la @PTHREADSTUBS_LIBS@
 libdrm_tegra_la_SOURCES = \
 	channel.c \
 	job.c \
+	pushbuf.c \
 	private.h \
 	tegra.c
 
