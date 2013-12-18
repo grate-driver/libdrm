@@ -91,7 +91,6 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	struct drm_tegra_cmdbuf *cmdbufs;
 	struct drm_tegra_syncpt syncpt;
 	struct drm_tegra_submit args;
-	unsigned int increments = 0;
 	struct host1x_fence *fence;
 	int err;
 
@@ -121,13 +120,12 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 
 		TRACE_IOCTL("cmdbuf: %x %d %d\n", cmdbuf->handle, cmdbuf->offset, cmdbuf->words);
 
-		increments += pushbuf->increments;
 		num_relocs += pushbuf->num_relocs;
 	}
 
 	memset(&syncpt, 0, sizeof(syncpt));
 	syncpt.id = job->syncpt;
-	syncpt.incrs = increments;
+	syncpt.incrs = job->increments;
 
 	TRACE_IOCTL("syncpt: %d %d\n", syncpt.id, syncpt.incrs);
 

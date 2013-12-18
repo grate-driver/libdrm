@@ -118,7 +118,7 @@ int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 	pb = &job->pushbufs[job->num_pushbufs++];
 	memset(pb, 0, sizeof(*pb));
 
-	pb->syncpt = job->syncpt;
+	pb->job = job;
 	pb->bo = drm_tegra_bo_get(bo);
 	pb->ptr = ptr + offset;
 	pb->offset = offset;
@@ -176,8 +176,8 @@ int host1x_pushbuf_sync(struct host1x_pushbuf *pb, enum host1x_syncpt_cond cond)
 	if (cond >= HOST1X_SYNCPT_COND_MAX)
 		return -EINVAL;
 
-	err = host1x_pushbuf_push(pb, cond << 8 | pb->syncpt);
+	err = host1x_pushbuf_push(pb, cond << 8 | pb->job->syncpt);
 	if (!err)
-		pb->increments++;
+		pb->job->increments++;
 	return err;
 }

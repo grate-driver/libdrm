@@ -45,8 +45,7 @@ struct host1x_pushbuf_reloc {
 };
 
 struct host1x_pushbuf {
-	host1x_syncpt_t syncpt;
-	unsigned int increments;
+	struct host1x_job *job;
 
 	struct drm_tegra_bo *bo;
 	unsigned long offset;
