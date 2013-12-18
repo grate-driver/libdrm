@@ -87,7 +87,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		     struct host1x_fence **fencep)
 {
 	struct drm_tegra_reloc *relocs, *reloc;
-	unsigned int i, j, num_relocs = 0;
+	unsigned int i, j;
 	struct drm_tegra_cmdbuf *cmdbufs;
 	struct drm_tegra_syncpt syncpt;
 	struct drm_tegra_submit args;
@@ -119,8 +119,6 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		cmdbuf->words = pushbuf->length;
 
 		TRACE_IOCTL("cmdbuf: %x %d %d\n", cmdbuf->handle, cmdbuf->offset, cmdbuf->words);
-
-		num_relocs += pushbuf->num_relocs;
 	}
 
 	memset(&syncpt, 0, sizeof(syncpt));
@@ -129,7 +127,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 
 	TRACE_IOCTL("syncpt: %d %d\n", syncpt.id, syncpt.incrs);
 
-	relocs = calloc(num_relocs, sizeof(*relocs));
+	relocs = calloc(job->num_relocs, sizeof(*relocs));
 	if (!relocs) {
 		free(cmdbufs);
 		free(fence);
@@ -138,29 +136,25 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 
 	reloc = relocs;
 
-	for (i = 0; i < job->num_pushbufs; i++) {
-		struct host1x_pushbuf *pushbuf = &job->pushbufs[i];
+	for (j = 0; j < job->num_relocs; j++) {
+		struct host1x_pushbuf_reloc *r = &job->relocs[j];
 
-		for (j = 0; j < pushbuf->num_relocs; j++) {
-			struct host1x_pushbuf_reloc *r = &pushbuf->relocs[j];
+		reloc->cmdbuf.handle = r->source_handle;
+		reloc->cmdbuf.offset = r->source_offset;
+		reloc->target.handle = r->target_handle;
+		reloc->target.offset = r->target_offset;
+		reloc->shift = r->shift;
 
-			reloc->cmdbuf.handle = pushbuf->bo->handle;
-			reloc->cmdbuf.offset = r->source_offset;
-			reloc->target.handle = r->target_handle;
-			reloc->target.offset = r->target_offset;
-			reloc->shift = r->shift;
+		TRACE_IOCTL("reloc: %x %d %x %d %d\n", reloc->cmdbuf.handle, reloc->cmdbuf.offset, reloc->target.handle, reloc->target.offset, reloc->shift);
 
-			TRACE_IOCTL("reloc: %x %d %x %d %d\n", reloc->cmdbuf.handle, reloc->cmdbuf.offset, reloc->target.handle, reloc->target.offset, reloc->shift);
-
-			reloc++;
-		}
+		reloc++;
 	}
 
 	memset(&args, 0, sizeof(args));
 	args.context = job->channel->context;
 	args.num_syncpts = 1;
 	args.num_cmdbufs = job->num_pushbufs;
-	args.num_relocs = num_relocs;
+	args.num_relocs = job->num_relocs;
 	args.num_waitchks = 0;
 	args.waitchk_mask = 0;
 	args.timeout = 1000;

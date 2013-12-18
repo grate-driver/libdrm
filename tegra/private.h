@@ -38,6 +38,7 @@ struct drm_tegra_channel {
 };
 
 struct host1x_pushbuf_reloc {
+	unsigned long source_handle;
 	unsigned long source_offset;
 	unsigned long target_handle;
 	unsigned long target_offset;
@@ -50,9 +51,6 @@ struct host1x_pushbuf {
 	struct drm_tegra_bo *bo;
 	unsigned long offset;
 	unsigned long length;
-
-	struct host1x_pushbuf_reloc *relocs;
-	unsigned int num_relocs;
 
 	uint32_t *ptr;
 };
@@ -67,6 +65,9 @@ struct host1x_job {
 
 	host1x_syncpt_t syncpt;
 	unsigned int increments;
+
+	struct host1x_pushbuf_reloc *relocs;
+	unsigned int num_relocs;
 
 	struct host1x_pushbuf *pushbufs;
 	unsigned int num_pushbufs;

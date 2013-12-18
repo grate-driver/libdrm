@@ -64,9 +64,9 @@ void host1x_job_free(struct host1x_job *job)
 	for (i = 0; i < job->num_pushbufs; i++) {
 		struct host1x_pushbuf *pb = &job->pushbufs[i];
 		drm_tegra_bo_put(pb->bo);
-		free(pb->relocs);
 	}
 
+	free(job->relocs);
 	free(job->pushbufs);
 	free(job);
 }
@@ -81,10 +81,11 @@ int host1x_job_reset(struct host1x_job *job)
 	for (i = 0; i < job->num_pushbufs; i++) {
 		struct host1x_pushbuf *pb = &job->pushbufs[i];
 		drm_tegra_bo_put(pb->bo);
-		free(pb->relocs);
 	}
+	free(job->relocs);
 	free(job->pushbufs);
 
+	job->relocs = NULL;
 	job->pushbufs = NULL;
 	job->num_pushbufs = 0;
 	job->increments = 0;
@@ -151,16 +152,17 @@ int host1x_pushbuf_relocate(struct host1x_pushbuf *pb,
 	struct host1x_pushbuf_reloc *reloc;
 	size_t size;
 
-	size = (pb->num_relocs + 1) * sizeof(*reloc);
+	size = (pb->job->num_relocs + 1) * sizeof(*reloc);
 
-	reloc = realloc(pb->relocs, size);
+	reloc = realloc(pb->job->relocs, size);
 	if (!reloc)
 		return -ENOMEM;
 
-	pb->relocs = reloc;
+	pb->job->relocs = reloc;
 
-	reloc = &pb->relocs[pb->num_relocs++];
+	reloc = &pb->job->relocs[pb->job->num_relocs++];
 
+	reloc->source_handle = pb->bo->handle;
 	reloc->source_offset = drm_tegra_bo_get_offset(pb->bo, pb->ptr);
 	reloc->target_handle = target->handle;
 	reloc->target_offset = offset;
