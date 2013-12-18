@@ -86,7 +86,6 @@ void drm_tegra_close(struct drm_tegra *drm)
 int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		     struct host1x_fence **fencep)
 {
-	struct drm_tegra_reloc *relocs, *reloc;
 	unsigned int i, j;
 	struct drm_tegra_cmdbuf *cmdbufs;
 	struct drm_tegra_syncpt syncpt;
@@ -127,27 +126,9 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 
 	TRACE_IOCTL("syncpt: %d %d\n", syncpt.id, syncpt.incrs);
 
-	relocs = calloc(job->num_relocs, sizeof(*relocs));
-	if (!relocs) {
-		free(cmdbufs);
-		free(fence);
-		return -ENOMEM;
-	}
-
-	reloc = relocs;
-
 	for (j = 0; j < job->num_relocs; j++) {
-		struct host1x_pushbuf_reloc *r = &job->relocs[j];
-
-		reloc->cmdbuf.handle = r->source_handle;
-		reloc->cmdbuf.offset = r->source_offset;
-		reloc->target.handle = r->target_handle;
-		reloc->target.offset = r->target_offset;
-		reloc->shift = r->shift;
-
+		struct drm_tegra_reloc *reloc = &job->relocs[j];
 		TRACE_IOCTL("reloc: %x %d %x %d %d\n", reloc->cmdbuf.handle, reloc->cmdbuf.offset, reloc->target.handle, reloc->target.offset, reloc->shift);
-
-		reloc++;
 	}
 
 	memset(&args, 0, sizeof(args));
@@ -161,7 +142,7 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 
 	args.syncpts = (unsigned long)&syncpt;
 	args.cmdbufs = (unsigned long)cmdbufs;
-	args.relocs = (unsigned long)relocs;
+	args.relocs = (unsigned long)job->relocs;
 	args.waitchks = 0;
 
 	TRACE_IOCTL("submit: %llx %d %d %d %d %x %d\n", args.context, args.num_syncpts, args.num_cmdbufs, args.num_relocs, args.num_waitchks, args.waitchk_mask, args.timeout);
@@ -174,7 +155,6 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	}
 
 	host1x_job_reset(job);
-	free(relocs);
 	free(cmdbufs);
 
 	if (!err) {

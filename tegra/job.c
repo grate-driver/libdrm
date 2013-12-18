@@ -149,7 +149,7 @@ int host1x_pushbuf_relocate(struct host1x_pushbuf *pb,
 			    struct drm_tegra_bo *target, unsigned long offset,
 			    unsigned long shift)
 {
-	struct host1x_pushbuf_reloc *reloc;
+	struct drm_tegra_reloc *reloc;
 	size_t size;
 
 	size = (pb->job->num_relocs + 1) * sizeof(*reloc);
@@ -162,10 +162,10 @@ int host1x_pushbuf_relocate(struct host1x_pushbuf *pb,
 
 	reloc = &pb->job->relocs[pb->job->num_relocs++];
 
-	reloc->source_handle = pb->bo->handle;
-	reloc->source_offset = drm_tegra_bo_get_offset(pb->bo, pb->ptr);
-	reloc->target_handle = target->handle;
-	reloc->target_offset = offset;
+	reloc->cmdbuf.handle = pb->bo->handle;
+	reloc->cmdbuf.offset = drm_tegra_bo_get_offset(pb->bo, pb->ptr);
+	reloc->target.handle = target->handle;
+	reloc->target.offset = offset;
 	reloc->shift = shift;
 
 	return 0;

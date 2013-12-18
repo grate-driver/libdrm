@@ -5,6 +5,7 @@
 #include <xf86atomic.h>
 
 #include "tegra.h"
+#include "tegra_drm.h"
 
 struct drm_tegra_bo {
 	struct drm_tegra *drm;
@@ -37,14 +38,6 @@ struct drm_tegra_channel {
 	unsigned int num_syncpts;
 };
 
-struct host1x_pushbuf_reloc {
-	unsigned long source_handle;
-	unsigned long source_offset;
-	unsigned long target_handle;
-	unsigned long target_offset;
-	unsigned long shift;
-};
-
 struct host1x_pushbuf {
 	struct host1x_job *job;
 
@@ -66,7 +59,7 @@ struct host1x_job {
 	host1x_syncpt_t syncpt;
 	unsigned int increments;
 
-	struct host1x_pushbuf_reloc *relocs;
+	struct drm_tegra_reloc *relocs;
 	unsigned int num_relocs;
 
 	struct host1x_pushbuf *pushbufs;
