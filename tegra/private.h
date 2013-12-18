@@ -20,7 +20,6 @@ struct drm_tegra_bo {
 };
 
 struct drm_tegra {
-	drmMMListHead bo_list;
 	int fd;
 };
 

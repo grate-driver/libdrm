@@ -69,7 +69,6 @@ int drm_tegra_open(int fd, struct drm_tegra **drmp)
 	if (!drm)
 		return -ENOMEM;
 
-	DRMINITLISTHEAD(&drm->bo_list);
 	drm->fd = fd;
 
 	*drmp = drm;
@@ -257,7 +256,6 @@ int drm_tegra_bo_create(struct drm_tegra *drm, uint32_t flags, uint32_t size,
 		return -errno;
 	}
 
-	DRMLISTADD(&bo->list, &drm->bo_list);
 	bo->handle = args.handle;
 
 	*bop = bo;
@@ -295,7 +293,6 @@ int drm_tegra_bo_open(struct drm_tegra *drm, uint32_t name,
 		return -errno;
 	}
 
-	DRMLISTADD(&bo->list, &drm->bo_list);
 	bo->handle = args.handle;
 	bo->size = args.size;
 
