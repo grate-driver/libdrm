@@ -49,6 +49,8 @@ int host1x_job_create(struct drm_tegra_channel *channel,
 	if (!job)
 		return -ENOMEM;
 
+	DRMINITLISTHEAD(&job->bo_list);
+
 	job->syncpt = channel->syncpts[0];
 	job->channel = channel;
 
@@ -59,12 +61,10 @@ int host1x_job_create(struct drm_tegra_channel *channel,
 
 void host1x_job_free(struct host1x_job *job)
 {
-	unsigned int i;
+	struct drm_tegra_bo *bo;
 
-	for (i = 0; i < job->num_pushbufs; i++) {
-		struct host1x_pushbuf *pb = &job->pushbufs[i];
-		drm_tegra_bo_put(pb->bo);
-	}
+	DRMLISTFOREACHENTRY(bo, &job->bo_list, list)
+		drm_tegra_bo_put(bo);
 
 	free(job->relocs);
 	free(job->pushbufs);
@@ -73,15 +73,14 @@ void host1x_job_free(struct host1x_job *job)
 
 int host1x_job_reset(struct host1x_job *job)
 {
-	int i;
+	struct drm_tegra_bo *bo;
 
 	if (!job)
 		return -EINVAL;
 
-	for (i = 0; i < job->num_pushbufs; i++) {
-		struct host1x_pushbuf *pb = &job->pushbufs[i];
-		drm_tegra_bo_put(pb->bo);
-	}
+	DRMLISTFOREACHENTRY(bo, &job->bo_list, list)
+		drm_tegra_bo_put(bo);
+
 	free(job->relocs);
 	free(job->pushbufs);
 
@@ -126,6 +125,8 @@ int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
 	pb->offset = offset;
 
 	*pbp = pb;
+
+	DRMLISTADD(&bo->list, &job->bo_list);
 
 	return 0;
 }

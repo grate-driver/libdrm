@@ -63,6 +63,8 @@ struct host1x_job {
 
 	struct host1x_pushbuf *pushbufs;
 	unsigned int num_pushbufs;
+
+	drmMMListHead bo_list;
 };
 
 #if 1
