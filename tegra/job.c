@@ -86,6 +86,7 @@ int host1x_job_reset(struct host1x_job *job)
 	free(job->pushbufs);
 
 	job->relocs = NULL;
+	job->num_relocs = 0;
 	job->pushbufs = NULL;
 	job->num_pushbufs = 0;
 	job->increments = 0;
