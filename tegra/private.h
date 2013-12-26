@@ -40,11 +40,9 @@ struct drm_tegra_channel {
 struct host1x_pushbuf {
 	struct host1x_job *job;
 
-	struct drm_tegra_bo *bo;
-	unsigned long offset;
-	unsigned long length;
+	struct drm_tegra_cmdbuf *cmdbuf;
 
-	uint32_t *ptr;
+	uint32_t *start, *ptr, *end;
 };
 
 struct host1x_fence {
@@ -61,8 +59,8 @@ struct host1x_job {
 	struct drm_tegra_reloc *relocs;
 	unsigned int num_relocs;
 
-	struct host1x_pushbuf *pushbufs;
-	unsigned int num_pushbufs;
+	struct drm_tegra_cmdbuf *cmdbufs;
+	unsigned int num_cmdbufs;
 
 	drmMMListHead bo_list;
 };

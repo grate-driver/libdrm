@@ -27,14 +27,9 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "private.h"
-
-static inline unsigned long drm_tegra_bo_get_offset(struct drm_tegra_bo *bo,
-						    void *ptr)
-{
-	return (unsigned long)ptr - (unsigned long)bo->map;
-}
 
 int host1x_job_create(struct drm_tegra_channel *channel,
 		      struct host1x_job **jobp)
@@ -67,7 +62,7 @@ void host1x_job_free(struct host1x_job *job)
 		drm_tegra_bo_put(bo);
 
 	free(job->relocs);
-	free(job->pushbufs);
+	free(job->cmdbufs);
 	free(job);
 }
 
@@ -82,53 +77,86 @@ int host1x_job_reset(struct host1x_job *job)
 		drm_tegra_bo_put(bo);
 
 	free(job->relocs);
-	free(job->pushbufs);
+	free(job->cmdbufs);
 
 	job->relocs = NULL;
 	job->num_relocs = 0;
-	job->pushbufs = NULL;
-	job->num_pushbufs = 0;
+	job->cmdbufs = NULL;
+	job->num_cmdbufs = 0;
 	job->increments = 0;
 
 	return 0;
 }
 
-int host1x_job_append(struct host1x_job *job, struct drm_tegra_bo *bo,
-		      unsigned long offset, struct host1x_pushbuf **pbp)
+int host1x_pushbuf_create(struct host1x_job *job, struct host1x_pushbuf **pbp)
 {
 	struct host1x_pushbuf *pb;
-	size_t size;
-	void *ptr;
-	int err;
 
-	if (!job || !bo || !pbp)
+	if (!job || !pbp)
 		return -EINVAL;
 
-	err = drm_tegra_bo_map(bo, &ptr);
+	pb = malloc(sizeof(*pb));
+	memset(pb, 0, sizeof(*pb));
+	pb->job = job;
+
+	*pbp = pb;
+	return 0;
+}
+
+int host1x_pushbuf_free(struct host1x_pushbuf *pb)
+{
+	/* TODO: actually free */
+}
+
+static int host1x_pushbuf_realloc(struct host1x_pushbuf *pb, size_t words)
+{
+	struct drm_tegra_bo *bo;
+	struct drm_tegra_cmdbuf *cmdbuf;
+	int err;
+
+	if (!pb)
+		return -EINVAL;
+
+	assert(pb->job && pb->job->channel && pb->job->channel->drm);
+
+	err = drm_tegra_bo_create(pb->job->channel->drm, 0, sizeof(uint32_t) * words, &bo);
 	if (err < 0)
 		return err;
 
-	size = (job->num_pushbufs + 1) * sizeof(*pb);
+	err = drm_tegra_bo_map(bo, (void **)&pb->start);
+	if (err < 0)
+		goto failure;
+	pb->ptr = pb->start;
+	pb->end = pb->start + words;
 
-	pb = realloc(job->pushbufs, size);
-	if (!pb)
-		return -ENOMEM;
+	DRMLISTADD(&bo->list, &pb->job->bo_list);
 
-	job->pushbufs = pb;
+	cmdbuf = realloc(pb->job->cmdbufs, (pb->job->num_cmdbufs + 1) * sizeof(*cmdbuf));
+	if (!cmdbuf) {
+		err = errno;
+		goto failure;
+	}
+	pb->job->cmdbufs = cmdbuf;
+	cmdbuf += pb->job->num_cmdbufs++;
 
-	pb = &job->pushbufs[job->num_pushbufs++];
-	memset(pb, 0, sizeof(*pb));
-
-	pb->job = job;
-	pb->bo = drm_tegra_bo_get(bo);
-	pb->ptr = ptr + offset;
-	pb->offset = offset;
-
-	*pbp = pb;
-
-	DRMLISTADD(&bo->list, &job->bo_list);
+	cmdbuf->handle = bo->handle;
+	cmdbuf->offset = 0;
+	cmdbuf->words = 0;
+	pb->cmdbuf = cmdbuf;
 
 	return 0;
+
+failure:
+	drm_tegra_bo_put(bo);
+	return err;
+}
+
+int host1x_pushbuf_room(struct host1x_pushbuf *pb, int words)
+{
+	if (pb->ptr + words < pb->end)
+		return 0;
+
+	return host1x_pushbuf_realloc(pb, words);
 }
 
 int host1x_pushbuf_push(struct host1x_pushbuf *pb, uint32_t word)
@@ -136,11 +164,10 @@ int host1x_pushbuf_push(struct host1x_pushbuf *pb, uint32_t word)
 	if (!pb)
 		return -EINVAL;
 
-	if (pb->length * sizeof(uint32_t) >= pb->bo->size)
-		return -EINVAL;
+	assert(pb->ptr < pb->end);
 
 	*pb->ptr++ = word;
-	pb->length++;
+	pb->cmdbuf->words++;
 
 	TRACE_PUSH("PUSH: %08x\n", word);
 
@@ -164,8 +191,8 @@ int host1x_pushbuf_relocate(struct host1x_pushbuf *pb,
 
 	reloc = &pb->job->relocs[pb->job->num_relocs++];
 
-	reloc->cmdbuf.handle = pb->bo->handle;
-	reloc->cmdbuf.offset = drm_tegra_bo_get_offset(pb->bo, pb->ptr);
+	reloc->cmdbuf.handle = pb->cmdbuf->handle;
+	reloc->cmdbuf.offset = (unsigned long)pb->ptr - (unsigned long)pb->start;
 	reloc->target.handle = target->handle;
 	reloc->target.offset = offset;
 	reloc->shift = shift;

@@ -85,8 +85,7 @@ void drm_tegra_close(struct drm_tegra *drm)
 int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 		     struct host1x_fence **fencep)
 {
-	unsigned int i, j;
-	struct drm_tegra_cmdbuf *cmdbufs;
+	unsigned int i;
 	struct drm_tegra_syncpt syncpt;
 	struct drm_tegra_submit args;
 	struct host1x_fence *fence;
@@ -95,27 +94,15 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	if (!drm || !job || !fencep)
 		return -EINVAL;
 
-	if (job->num_pushbufs == 0)
+	if (job->num_cmdbufs == 0)
 		return 0;
 
 	fence = calloc(1, sizeof(*fence));
 	if (!fence)
 		return -ENOMEM;
 
-	cmdbufs = calloc(job->num_pushbufs, sizeof(*cmdbufs));
-	if (!cmdbufs) {
-		free(fence);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < job->num_pushbufs; i++) {
-		struct host1x_pushbuf *pushbuf = &job->pushbufs[i];
-		struct drm_tegra_cmdbuf *cmdbuf = &cmdbufs[i];
-
-		cmdbuf->handle = pushbuf->bo->handle;
-		cmdbuf->offset = pushbuf->offset;
-		cmdbuf->words = pushbuf->length;
-
+	for (i = 0; i < job->num_cmdbufs; i++) {
+		struct drm_tegra_cmdbuf *cmdbuf = &job->cmdbufs[i];
 		TRACE_IOCTL("cmdbuf: %x %d %d\n", cmdbuf->handle, cmdbuf->offset, cmdbuf->words);
 	}
 
@@ -125,22 +112,22 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 
 	TRACE_IOCTL("syncpt: %d %d\n", syncpt.id, syncpt.incrs);
 
-	for (j = 0; j < job->num_relocs; j++) {
-		struct drm_tegra_reloc *reloc = &job->relocs[j];
+	for (i = 0; i < job->num_relocs; i++) {
+		struct drm_tegra_reloc *reloc = &job->relocs[i];
 		TRACE_IOCTL("reloc: %x %d %x %d %d\n", reloc->cmdbuf.handle, reloc->cmdbuf.offset, reloc->target.handle, reloc->target.offset, reloc->shift);
 	}
 
 	memset(&args, 0, sizeof(args));
 	args.context = job->channel->context;
 	args.num_syncpts = 1;
-	args.num_cmdbufs = job->num_pushbufs;
+	args.num_cmdbufs = job->num_cmdbufs;
 	args.num_relocs = job->num_relocs;
 	args.num_waitchks = 0;
 	args.waitchk_mask = 0;
 	args.timeout = 1000;
 
 	args.syncpts = (unsigned long)&syncpt;
-	args.cmdbufs = (unsigned long)cmdbufs;
+	args.cmdbufs = (unsigned long)job->cmdbufs;
 	args.relocs = (unsigned long)job->relocs;
 	args.waitchks = 0;
 
@@ -154,7 +141,6 @@ int drm_tegra_submit(struct drm_tegra *drm, struct host1x_job *job,
 	}
 
 	host1x_job_reset(job);
-	free(cmdbufs);
 
 	if (!err) {
 		fence->syncpt = job->syncpt;
