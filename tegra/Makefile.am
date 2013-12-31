@@ -11,6 +11,7 @@ libdrm_tegra_la_SOURCES = \
 	channel.c \
 	job.c \
 	private.h \
+	pushbuf.c \
 	tegra.c
 
 libdrm_tegraincludedir = ${includedir}/libdrm
