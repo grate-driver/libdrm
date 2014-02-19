@@ -48,6 +48,7 @@ static void drm_tegra_bo_free(struct drm_tegra_bo *bo)
 
 	drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args);
 
+	DRMLISTDEL(&bo->list);
 	free(bo);
 }
 
@@ -115,6 +116,7 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 	if (!bo)
 		return -ENOMEM;
 
+	DRMINITLISTHEAD(&bo->list);
 	atomic_set(&bo->ref, 1);
 	bo->flags = flags;
 	bo->size = size;
