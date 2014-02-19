@@ -190,6 +190,64 @@ int drm_tegra_bo_get_handle(struct drm_tegra_bo *bo, uint32_t *handle)
 	return 0;
 }
 
+int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
+{
+	if (!bo || !name)
+		return -EINVAL;
+
+	if (!bo->name) {
+		struct drm_gem_flink args;
+		int err;
+
+		memset(&args, 0, sizeof(args));
+		args.handle = bo->handle;
+
+		err = drmIoctl(bo->drm->fd, DRM_IOCTL_GEM_FLINK, &args);
+		if (err < 0)
+			return -errno;
+
+		bo->name = args.name;
+	}
+
+	*name = bo->name;
+
+	return 0;
+}
+
+int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
+			   uint32_t name)
+{
+	struct drm_gem_open args;
+	struct drm_tegra_bo *bo;
+	int err;
+
+	if (!drm || !name || !bop)
+		return -EINVAL;
+
+	bo = calloc(1, sizeof(*bo));
+	if (!bo)
+		return -ENOMEM;
+
+	memset(&args, 0, sizeof(args));
+	args.name = name;
+
+	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_OPEN, &args);
+	if (err < 0) {
+		free(bo);
+		return -errno;
+	}
+
+	atomic_set(&bo->ref, 1);
+	bo->handle = args.handle;
+	bo->flags = 0;
+	bo->size = args.size;
+	bo->drm = drm;
+
+	*bop = bo;
+
+	return 0;
+}
+
 int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 {
 	struct drm_tegra *drm = bo->drm;
