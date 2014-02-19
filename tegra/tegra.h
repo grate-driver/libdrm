@@ -28,6 +28,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <tegra_drm.h>
+
+enum drm_tegra_class {
+	DRM_TEGRA_GR2D,
+	DRM_TEGRA_GR3D,
+};
+
 struct drm_tegra_bo;
 struct drm_tegra;
 
@@ -56,5 +63,54 @@ int drm_tegra_bo_get_tiling(struct drm_tegra_bo *bo,
 			    struct drm_tegra_bo_tiling *tiling);
 int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 			    const struct drm_tegra_bo_tiling *tiling);
+
+struct drm_tegra_channel;
+struct drm_tegra_job;
+
+struct drm_tegra_pushbuf {
+	uint32_t *ptr;
+};
+
+struct drm_tegra_fence;
+
+enum drm_tegra_syncpt_cond {
+	DRM_TEGRA_SYNCPT_COND_IMMEDIATE,
+	DRM_TEGRA_SYNCPT_COND_OP_DONE,
+	DRM_TEGRA_SYNCPT_COND_RD_DONE,
+	DRM_TEGRA_SYNCPT_COND_WR_SAFE,
+	DRM_TEGRA_SYNCPT_COND_MAX,
+};
+
+int drm_tegra_channel_open(struct drm_tegra_channel **channelp,
+			   struct drm_tegra *drm,
+			   enum drm_tegra_class client);
+int drm_tegra_channel_close(struct drm_tegra_channel *channel);
+
+int drm_tegra_job_new(struct drm_tegra_job **jobp,
+		      struct drm_tegra_channel *channel);
+int drm_tegra_job_free(struct drm_tegra_job *job);
+int drm_tegra_job_submit(struct drm_tegra_job *job,
+			 struct drm_tegra_fence **fencep);
+
+int drm_tegra_pushbuf_new(struct drm_tegra_pushbuf **pushbufp,
+			  struct drm_tegra_job *job);
+int drm_tegra_pushbuf_free(struct drm_tegra_pushbuf *pushbuf);
+int drm_tegra_pushbuf_prepare(struct drm_tegra_pushbuf *pushbuf,
+			      unsigned int words);
+int drm_tegra_pushbuf_relocate(struct drm_tegra_pushbuf *pushbuf,
+			       struct drm_tegra_bo *target,
+			       unsigned long offset,
+			       unsigned long shift);
+int drm_tegra_pushbuf_sync(struct drm_tegra_pushbuf *pushbuf,
+			   enum drm_tegra_syncpt_cond cond);
+
+int drm_tegra_fence_wait_timeout(struct drm_tegra_fence *fence,
+				 unsigned long timeout);
+void drm_tegra_fence_free(struct drm_tegra_fence *fence);
+
+static inline int drm_tegra_fence_wait(struct drm_tegra_fence *fence)
+{
+	return drm_tegra_fence_wait_timeout(fence, -1);
+}
 
 #endif /* __DRM_TEGRA_H__ */
