@@ -13,7 +13,8 @@ libdrm_test_la_SOURCES = \
 
 LDADD = \
 	../../tegra/libdrm_tegra.la \
-	libdrm-test.la
+	libdrm-test.la \
+	../../libdrm.la
 
 TESTS = \
 	openclose \
