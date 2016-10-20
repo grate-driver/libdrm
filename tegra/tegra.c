@@ -212,6 +212,10 @@ drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 			bo->map = NULL;
 			return -errno;
 		}
+
+		atomic_set(&bo->mmap_ref, 1);
+	} else {
+		atomic_inc(&bo->mmap_ref);
 	}
 
 	if (ptr)
@@ -226,6 +230,9 @@ drm_public int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 		return -EINVAL;
 
 	if (!bo->map)
+		return 0;
+
+	if (!atomic_dec_and_test(&bo->mmap_ref))
 		return 0;
 
 	if (munmap(bo->map, bo->size))
