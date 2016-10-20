@@ -95,11 +95,12 @@ drm_public
 int drm_tegra_job_free(struct drm_tegra_job *job)
 {
 	struct drm_tegra_pushbuf_private *pushbuf;
+	struct drm_tegra_pushbuf_private *temp;
 
 	if (!job)
 		return -EINVAL;
 
-	DRMLISTFOREACHENTRY(pushbuf, &job->pushbufs, list)
+	DRMLISTFOREACHENTRYSAFE(pushbuf, temp, &job->pushbufs, list)
 		drm_tegra_pushbuf_free(&pushbuf->base);
 
 	free(job->cmdbufs);
