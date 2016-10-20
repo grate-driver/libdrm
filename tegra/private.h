@@ -64,6 +64,7 @@ struct drm_tegra_bo {
 	uint32_t flags;
 	uint32_t size;
 	atomic_t ref;
+	atomic_t mmap_ref;
 	void *map;
 };
 
