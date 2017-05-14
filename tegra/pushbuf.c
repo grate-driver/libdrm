@@ -71,7 +71,7 @@ int drm_tegra_pushbuf_new(struct drm_tegra_pushbuf **pushbufp,
 	pushbuf->start = pushbuf->base.ptr = (void*)((char*)ptr + offset);
 	pushbuf->offset = offset;
 
-	DRMLISTADD(&pushbuf->list, &job->pushbufs);
+	DRMLISTADDTAIL(&pushbuf->list, &job->pushbufs);
 	job->num_pushbufs++;
 
 	*pushbufp = &pushbuf->base;
