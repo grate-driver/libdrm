@@ -84,7 +84,7 @@ int drm_tegra_pushbuf_new(struct drm_tegra_pushbuf **pushbufp,
 
 	*pushbufp = &pushbuf->base;
 
-	DRMLISTADD(&pushbuf->list, &job->pushbufs);
+	DRMLISTADDTAIL(&pushbuf->list, &job->pushbufs);
 	job->pushbuf = pushbuf;
 
 	return 0;
