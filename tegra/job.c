@@ -85,6 +85,7 @@ int drm_tegra_job_new(struct drm_tegra_job **jobp,
 
 	DRMINITLISTHEAD(&job->pushbufs);
 	job->channel = channel;
+	job->syncpt = channel->syncpt;
 
 	*jobp = job;
 
