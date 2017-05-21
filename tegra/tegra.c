@@ -35,17 +35,20 @@
 
 #include "private.h"
 
-static void drm_tegra_bo_free(struct drm_tegra_bo *bo)
+static int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 {
 	struct drm_tegra *drm = bo->drm;
+	int err;
 
 	if (bo->map)
 		munmap(bo->map, bo->size);
 
-	drmCloseBufferHandle(drm->fd, bo->handle);
+	err = drmCloseBufferHandle(drm->fd, bo->handle);
 
 	DRMLISTDEL(&bo->list);
 	free(bo);
+
+	return err;
 }
 
 static int drm_tegra_wrap(struct drm_tegra **drmp, int fd, bool close)
@@ -168,10 +171,17 @@ drm_public struct drm_tegra_bo *drm_tegra_bo_ref(struct drm_tegra_bo *bo)
 	return bo;
 }
 
-drm_public void drm_tegra_bo_unref(struct drm_tegra_bo *bo)
+drm_public int drm_tegra_bo_unref(struct drm_tegra_bo *bo)
 {
-	if (bo && atomic_dec_and_test(&bo->ref))
-		drm_tegra_bo_free(bo);
+	int err = -EBUSY;
+
+	if (!bo)
+		return -EINVAL;
+
+	if (atomic_dec_and_test(&bo->ref))
+		err = drm_tegra_bo_free(bo);
+
+	return err;
 }
 
 drm_public int drm_tegra_bo_get_handle(struct drm_tegra_bo *bo, uint32_t *handle)
