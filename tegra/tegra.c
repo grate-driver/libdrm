@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -35,11 +36,16 @@
 
 #include "private.h"
 
-static int drm_tegra_bo_free(struct drm_tegra_bo *bo)
+drm_private pthread_mutex_t table_lock = PTHREAD_MUTEX_INITIALIZER;
+
+drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 {
 	struct drm_tegra *drm = bo->drm;
 	struct drm_gem_close args;
 	int err;
+
+	if (bo->reuse)
+		VG_BO_FREE(bo);
 
 	if (bo->map)
 		munmap(bo->map, bo->size);
@@ -49,7 +55,7 @@ static int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 
 	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args);
 
-	DRMLISTDEL(&bo->list);
+	DRMLISTDEL(&bo->bo_list);
 	free(bo);
 
 	return err;
@@ -68,6 +74,8 @@ static int drm_tegra_wrap(struct drm_tegra **drmp, int fd, bool close)
 
 	drm->close = close;
 	drm->fd = fd;
+
+	drm_tegra_bo_cache_init(&drm->bo_cache, false);
 
 	*drmp = drm;
 
@@ -102,6 +110,8 @@ drm_public void drm_tegra_close(struct drm_tegra *drm)
 	if (drm->close)
 		close(drm->fd);
 
+	drm_tegra_bo_cache_cleanup(&drm->bo_cache, 0);
+
 	free(drm);
 }
 
@@ -115,12 +125,18 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 	if (!drm || size == 0 || !bop)
 		return -EINVAL;
 
+	bo = drm_tegra_bo_cache_alloc(&drm->bo_cache, &size, flags);
+	if (bo)
+		goto out;
+
 	bo = calloc(1, sizeof(*bo));
 	if (!bo)
 		return -ENOMEM;
 
-	DRMINITLISTHEAD(&bo->list);
+	DRMINITLISTHEAD(&bo->push_list);
+	DRMINITLISTHEAD(&bo->bo_list);
 	atomic_set(&bo->ref, 1);
+	bo->reuse = true;
 	bo->flags = flags;
 	bo->size = size;
 	bo->drm = drm;
@@ -139,6 +155,8 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 
 	bo->handle = args.handle;
 
+	VG_BO_ALLOC(bo);
+out:
 	*bop = bo;
 
 	return 0;
@@ -156,7 +174,8 @@ drm_public int drm_tegra_bo_wrap(struct drm_tegra_bo **bop, struct drm_tegra *dr
 	if (!bo)
 		return -ENOMEM;
 
-	DRMINITLISTHEAD(&bo->list);
+	DRMINITLISTHEAD(&bo->push_list);
+	DRMINITLISTHEAD(&bo->bo_list);
 	atomic_set(&bo->ref, 1);
 	bo->handle = handle;
 	bo->flags = flags;
@@ -178,13 +197,23 @@ drm_public struct drm_tegra_bo *drm_tegra_bo_ref(struct drm_tegra_bo *bo)
 
 drm_public int drm_tegra_bo_unref(struct drm_tegra_bo *bo)
 {
-	int err = -EBUSY;
+	struct drm_tegra *drm;
+	int err = 0;
 
 	if (!bo)
 		return -EINVAL;
 
-	if (atomic_dec_and_test(&bo->ref))
+	if (!atomic_dec_and_test(&bo->ref))
+		return 0;
+
+	drm = bo->drm;
+
+	pthread_mutex_lock(&table_lock);
+
+	if (!bo->reuse || (drm_tegra_bo_cache_free(&drm->bo_cache, bo) != 0))
 		err = drm_tegra_bo_free(bo);
+
+	pthread_mutex_unlock(&table_lock);
 
 	return err;
 }
@@ -365,6 +394,7 @@ int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
 			return -errno;
 
 		bo->name = args.name;
+		bo->reuse = false;
 	}
 
 	*name = bo->name;

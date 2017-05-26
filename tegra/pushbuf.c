@@ -101,8 +101,10 @@ int drm_tegra_pushbuf_free(struct drm_tegra_pushbuf *pushbuf)
 
 	drm_tegra_bo_unmap(priv->bo);
 
-	DRMLISTFOREACHENTRYSAFE(bo, tmp, &priv->bos, list)
+	DRMLISTFOREACHENTRYSAFE(bo, tmp, &priv->bos, push_list) {
+		DRMLISTDEL(&priv->bo->push_list);
 		drm_tegra_bo_unref(priv->bo);
+	}
 
 	DRMLISTDEL(&priv->list);
 	free(priv);
@@ -152,7 +154,7 @@ int drm_tegra_pushbuf_prepare(struct drm_tegra_pushbuf *pushbuf,
 		return err;
 	}
 
-	DRMLISTADD(&bo->list, &priv->bos);
+	DRMLISTADD(&bo->push_list, &priv->bos);
 
 	priv->start = priv->base.ptr = ptr;
 	priv->end = priv->start + bo->size;
