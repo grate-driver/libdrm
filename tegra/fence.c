@@ -29,7 +29,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include <sys/ioctl.h>
+#include <xf86drm.h>
 
 #include "private.h"
 
@@ -45,17 +45,9 @@ int drm_tegra_fence_wait_timeout(struct drm_tegra_fence *fence,
 	args.thresh = fence->value;
 	args.timeout = timeout;
 
-	while (true) {
-		err = ioctl(fence->drm->fd, DRM_IOCTL_TEGRA_SYNCPT_WAIT, &args);
-		if (err < 0) {
-			if (errno == EINTR)
-				continue;
-
-			return -errno;
-		}
-
-		break;
-	}
+	err = drmIoctl(fence->drm->fd, DRM_IOCTL_TEGRA_SYNCPT_WAIT, &args);
+	if (err < 0)
+		return -errno;
 
 	return 0;
 }
