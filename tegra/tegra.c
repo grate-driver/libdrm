@@ -335,3 +335,59 @@ drm_public int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 
 	return 0;
 }
+
+drm_public
+int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
+{
+	if (!bo || !name)
+		return -EINVAL;
+
+	if (!bo->name) {
+		struct drm_gem_flink args;
+		int err;
+
+		memset(&args, 0, sizeof(args));
+		args.handle = bo->handle;
+
+		err = drmIoctl(bo->drm->fd, DRM_IOCTL_GEM_FLINK, &args);
+		if (err < 0)
+			return -errno;
+
+		bo->name = args.name;
+	}
+
+	*name = bo->name;
+
+	return 0;
+}
+
+drm_public
+int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
+			   uint32_t name, uint32_t flags)
+{
+	struct drm_gem_open args;
+	struct drm_tegra_bo *bo;
+	int err;
+
+	if (!drm || !name || !bop)
+		return -EINVAL;
+
+	bo = calloc(1, sizeof(*bo));
+	if (!bo)
+		return -ENOMEM;
+
+	memset(&args, 0, sizeof(args));
+	args.name = name;
+
+	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_OPEN, &args);
+	if (err < 0) {
+		free(bo);
+		return -errno;
+	}
+
+	drm_tegra_bo_wrap(bop, drm, args.handle, flags, args.size);
+	if (err)
+		return err;
+
+	return 0;
+}
