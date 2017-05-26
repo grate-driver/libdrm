@@ -171,6 +171,10 @@ int drm_tegra_pushbuf_relocate(struct drm_tegra_pushbuf *pushbuf,
 	struct drm_tegra_reloc reloc;
 	int err;
 
+	err = drm_tegra_pushbuf_prepare(pushbuf, 1);
+	if (err < 0)
+		return err;
+
 	memset(&reloc, 0, sizeof(reloc));
 	reloc.cmdbuf.handle = priv->bo->handle;
 	reloc.cmdbuf.offset = drm_tegra_pushbuf_get_offset(pushbuf);
