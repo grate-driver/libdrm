@@ -156,6 +156,7 @@ drm_public int drm_tegra_bo_wrap(struct drm_tegra_bo **bop, struct drm_tegra *dr
 	if (!bo)
 		return -ENOMEM;
 
+	DRMINITLISTHEAD(&bo->list);
 	atomic_set(&bo->ref, 1);
 	bo->handle = handle;
 	bo->flags = flags;
