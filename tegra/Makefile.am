@@ -4,7 +4,8 @@ AM_CPPFLAGS = \
 
 AM_CFLAGS = \
 	@PTHREADSTUBS_CFLAGS@ \
-	$(WARN_CFLAGS)
+	$(WARN_CFLAGS) \
+	$(VALGRIND_CFLAGS)
 
 libdrm_tegra_ladir = $(libdir)
 libdrm_tegra_la_LTLIBRARIES = libdrm_tegra.la
@@ -17,7 +18,8 @@ libdrm_tegra_la_SOURCES = \
 	job.c \
 	private.h \
 	pushbuf.c \
-	tegra.c
+	tegra.c \
+	tegra_bo_cache.c
 
 libdrm_tegraincludedir = ${includedir}/libdrm
 libdrm_tegrainclude_HEADERS = tegra.h
