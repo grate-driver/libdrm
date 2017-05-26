@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/ioctl.h>
+#include <xf86drm.h>
 
 #include "private.h"
 
@@ -160,7 +160,7 @@ int drm_tegra_job_submit(struct drm_tegra_job *job,
 	args.relocs = (uintptr_t)job->relocs;
 	args.waitchks = 0;
 
-	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_SUBMIT, &args);
+	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_SUBMIT, &args);
 	if (err < 0) {
 		free(syncpts);
 		free(fence);

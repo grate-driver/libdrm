@@ -29,7 +29,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include <sys/ioctl.h>
+#include <xf86drm.h>
 
 #include "private.h"
 
@@ -43,7 +43,7 @@ static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 	args.context = channel->context;
 	args.index = 0;
 
-	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_GET_SYNCPT, &args);
+	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_GET_SYNCPT, &args);
 	if (err < 0)
 		return -errno;
 
@@ -84,7 +84,7 @@ int drm_tegra_channel_open(struct drm_tegra_channel **channelp,
 	memset(&args, 0, sizeof(args));
 	args.client = class;
 
-	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_OPEN_CHANNEL, &args);
+	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_OPEN_CHANNEL, &args);
 	if (err < 0) {
 		free(channel);
 		return -errno;
@@ -119,7 +119,7 @@ int drm_tegra_channel_close(struct drm_tegra_channel *channel)
 	memset(&args, 0, sizeof(args));
 	args.context = channel->context;
 
-	err = ioctl(drm->fd, DRM_IOCTL_TEGRA_CLOSE_CHANNEL, &args);
+	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_CLOSE_CHANNEL, &args);
 	if (err < 0)
 		return -errno;
 
