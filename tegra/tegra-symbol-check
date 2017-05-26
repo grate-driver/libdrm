@@ -28,6 +28,18 @@ drm_tegra_bo_unref
 drm_tegra_bo_wrap
 drm_tegra_close
 drm_tegra_new
+drm_tegra_channel_open
+drm_tegra_channel_close
+drm_tegra_job_new
+drm_tegra_job_free
+drm_tegra_job_submit
+drm_tegra_pushbuf_new
+drm_tegra_pushbuf_free
+drm_tegra_pushbuf_prepare
+drm_tegra_pushbuf_relocate
+drm_tegra_pushbuf_sync
+drm_tegra_fence_wait_timeou
+drm_tegra_fence_free
 EOF
 done)
 
