@@ -42,6 +42,8 @@ drm_tegra_fence_wait_timeou
 drm_tegra_fence_free
 drm_tegra_bo_get_name
 drm_tegra_bo_from_name
+drm_tegra_bo_from_dmabuf
+drm_tegra_bo_to_dmabuf
 EOF
 done)
 

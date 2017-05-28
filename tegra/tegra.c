@@ -432,3 +432,44 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 
 	return 0;
 }
+
+drm_public
+int drm_tegra_bo_to_dmabuf(struct drm_tegra_bo *bo, uint32_t *handle)
+{
+	struct drm_tegra *drm = bo->drm;
+	int prime_fd;
+	int err;
+
+	err = drmPrimeHandleToFD(drm->fd, bo->handle, DRM_CLOEXEC, &prime_fd);
+	if (err)
+		return err;
+
+	bo->reuse = false;
+
+	*handle = prime_fd;
+
+	return 0;
+}
+
+drm_public
+int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
+			     int fd, uint32_t flags)
+{
+	uint32_t handle;
+	uint32_t size;
+	int err;
+
+	err = drmPrimeFDToHandle(drm->fd, fd, &handle);
+	if (err)
+		return err;
+
+	/* lseek() to get bo size */
+	size = lseek(fd, 0, SEEK_END);
+	lseek(fd, 0, SEEK_CUR);
+
+	err = drm_tegra_bo_wrap(bop, drm, handle, flags, size);
+	if (err)
+		return err;
+
+	return 0;
+}
