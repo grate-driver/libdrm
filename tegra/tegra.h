@@ -68,6 +68,10 @@ int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name);
 int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 			   uint32_t name, uint32_t flags);
 
+int drm_tegra_bo_to_dmabuf(struct drm_tegra_bo *bo, uint32_t *handle);
+int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
+			     int fd, uint32_t flags);
+
 struct drm_tegra_channel;
 struct drm_tegra_job;
 
