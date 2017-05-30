@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 
 #include <libdrm_lists.h>
 #include <libdrm_macros.h>
@@ -44,6 +45,8 @@
 #define align(offset, align) \
 	(((offset) + (align) - 1) & ~((align) - 1))
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 enum host1x_class {
 	HOST1X_CLASS_HOST1X = 0x01,
 	HOST1X_CLASS_GR2D = 0x51,
@@ -51,14 +54,26 @@ enum host1x_class {
 	HOST1X_CLASS_GR3D = 0x60,
 };
 
+struct drm_tegra_bo_bucket {
+	uint32_t size;
+	drmMMListHead list;
+};
+
+struct drm_tegra_bo_cache {
+	struct drm_tegra_bo_bucket cache_bucket[14 * 4];
+	int num_buckets;
+	time_t time;
+};
+
 struct drm_tegra {
+	struct drm_tegra_bo_cache bo_cache;
 	bool close;
 	int fd;
 };
 
 struct drm_tegra_bo {
 	struct drm_tegra *drm;
-	drmMMListHead list;
+	drmMMListHead push_list;
 	uint32_t handle;
 	uint32_t offset;
 	uint32_t flags;
@@ -67,6 +82,10 @@ struct drm_tegra_bo {
 	atomic_t ref;
 	atomic_t mmap_ref;
 	void *map;
+
+	bool reuse;
+	drmMMListHead bo_list;	/* bucket-list entry */
+	time_t free_time;	/* time when added to bucket-list */
 };
 
 struct drm_tegra_channel {
@@ -121,5 +140,70 @@ int drm_tegra_job_add_reloc(struct drm_tegra_job *job,
 			    const struct drm_tegra_reloc *reloc);
 int drm_tegra_job_add_cmdbuf(struct drm_tegra_job *job,
 			     const struct drm_tegra_cmdbuf *cmdbuf);
+
+int drm_tegra_bo_free(struct drm_tegra_bo *bo);
+
+void drm_tegra_bo_cache_init(struct drm_tegra_bo_cache *cache, bool coarse);
+void drm_tegra_bo_cache_cleanup(struct drm_tegra_bo_cache *cache, time_t time);
+struct drm_tegra_bo * drm_tegra_bo_cache_alloc(
+		struct drm_tegra_bo_cache *cache,
+		uint32_t *size, uint32_t flags);
+int drm_tegra_bo_cache_free(struct drm_tegra_bo_cache *cache,
+			    struct drm_tegra_bo *bo);
+
+#ifdef HAVE_VALGRIND
+#  include <memcheck.h>
+
+/*
+ * For tracking the backing memory (if valgrind enabled, we force a mmap
+ * for the purposes of tracking)
+ */
+static inline void VG_BO_ALLOC(struct drm_tegra_bo *bo)
+{
+	void *map;
+
+	if (bo && RUNNING_ON_VALGRIND) {
+		drm_tegra_bo_map(bo, &map);
+		VALGRIND_MALLOCLIKE_BLOCK(map, bo->size, 0, 1);
+	}
+}
+
+static inline void VG_BO_FREE(struct drm_tegra_bo *bo)
+{
+	VALGRIND_FREELIKE_BLOCK(bo->map, 0);
+}
+
+/*
+ * For tracking bo structs that are in the buffer-cache, so that valgrind
+ * doesn't attribute ownership to the first one to allocate the recycled
+ * bo.
+ *
+ * Note that the bo_list in drm_tegra_bo is used to track the buffers in cache
+ * so disable error reporting on the range while they are in cache so
+ * valgrind doesn't squawk about list traversal.
+ *
+ */
+static inline void VG_BO_RELEASE(struct drm_tegra_bo *bo)
+{
+	if (RUNNING_ON_VALGRIND) {
+		VALGRIND_DISABLE_ADDR_ERROR_REPORTING_IN_RANGE(bo, sizeof(*bo));
+		VALGRIND_MAKE_MEM_NOACCESS(bo, sizeof(*bo));
+		VALGRIND_FREELIKE_BLOCK(bo->map, 0);
+	}
+}
+static inline void VG_BO_OBTAIN(struct drm_tegra_bo *bo)
+{
+	if (RUNNING_ON_VALGRIND) {
+		VALGRIND_MAKE_MEM_DEFINED(bo, sizeof(*bo));
+		VALGRIND_ENABLE_ADDR_ERROR_REPORTING_IN_RANGE(bo, sizeof(*bo));
+		VALGRIND_MALLOCLIKE_BLOCK(bo->map, bo->size, 0, 1);
+	}
+}
+#else
+static inline void VG_BO_ALLOC(struct drm_tegra_bo *bo)   {}
+static inline void VG_BO_FREE(struct drm_tegra_bo *bo)    {}
+static inline void VG_BO_RELEASE(struct drm_tegra_bo *bo) {}
+static inline void VG_BO_OBTAIN(struct drm_tegra_bo *bo)  {}
+#endif
 
 #endif /* __DRM_TEGRA_PRIVATE_H__ */
