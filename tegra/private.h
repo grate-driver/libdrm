@@ -34,7 +34,6 @@
 #include <libdrm_macros.h>
 #include <xf86atomic.h>
 
-#include "tegra_drm.h"
 #include "tegra.h"
 
 #define container_of(ptr, type, member) ({				\
