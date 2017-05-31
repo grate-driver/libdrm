@@ -32,8 +32,6 @@
 
 #include <xf86drm.h>
 
-#include <tegra_drm.h>
-
 #include "private.h"
 
 drm_private pthread_mutex_t table_lock = PTHREAD_MUTEX_INITIALIZER;
