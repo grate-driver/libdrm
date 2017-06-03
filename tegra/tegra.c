@@ -438,6 +438,9 @@ int drm_tegra_bo_to_dmabuf(struct drm_tegra_bo *bo, uint32_t *handle)
 	int prime_fd;
 	int err;
 
+	if (!bo || !handle)
+		return -EINVAL;
+
 	err = drmPrimeHandleToFD(drm->fd, bo->handle, DRM_CLOEXEC, &prime_fd);
 	if (err)
 		return err;
@@ -456,6 +459,9 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	uint32_t handle;
 	uint32_t size;
 	int err;
+
+	if (!drm || !bop)
+		return -EINVAL;
 
 	err = drmPrimeFDToHandle(drm->fd, fd, &handle);
 	if (err)
