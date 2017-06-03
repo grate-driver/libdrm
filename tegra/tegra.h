@@ -72,6 +72,8 @@ int drm_tegra_bo_to_dmabuf(struct drm_tegra_bo *bo, uint32_t *handle);
 int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 			     int fd, uint32_t flags);
 
+int drm_tegra_bo_get_size(struct drm_tegra_bo *bo, uint32_t *size);
+
 struct drm_tegra_channel;
 struct drm_tegra_job;
 
