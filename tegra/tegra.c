@@ -496,3 +496,14 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 
 	return 0;
 }
+
+drm_public
+int drm_tegra_bo_get_size(struct drm_tegra_bo *bo, uint32_t *size)
+{
+	if (!bo || !size)
+		return -EINVAL;
+
+	*size = bo->size;
+
+	return 0;
+}
