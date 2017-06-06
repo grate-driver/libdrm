@@ -41,8 +41,7 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 	struct drm_tegra *drm = bo->drm;
 	int err;
 
-	if (bo->reuse)
-		VG_BO_FREE(bo);
+	VG_BO_FREE(bo);
 
 	if (bo->map)
 		munmap(bo->map, bo->size);
@@ -174,6 +173,8 @@ drm_public int drm_tegra_bo_wrap(struct drm_tegra_bo **bop, struct drm_tegra *dr
 	bo->flags = flags;
 	bo->size = size;
 	bo->drm = drm;
+
+	VG_BO_ALLOC(bo);
 
 	*bop = bo;
 
@@ -423,6 +424,8 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	bo->size = args.size;
 	bo->drm = drm;
 
+	VG_BO_ALLOC(bo);
+
 	*bop = bo;
 
 	return 0;
@@ -478,6 +481,8 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	bo->flags = flags;
 	bo->size = size;
 	bo->drm = drm;
+
+	VG_BO_ALLOC(bo);
 
 	*bop = bo;
 
