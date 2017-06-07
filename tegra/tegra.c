@@ -49,7 +49,6 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 
 	err = drmCloseBufferHandle(drm->fd, bo->handle);
 
-	DRMLISTDEL(&bo->bo_list);
 	free(bo);
 
 	return err;
