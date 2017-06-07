@@ -423,9 +423,13 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 		return -errno;
 	}
 
-	drm_tegra_bo_wrap(bop, drm, args.handle, flags, args.size);
-	if (err)
-		return err;
+	atomic_set(&bo->ref, 1);
+	bo->handle = args.handle;
+	bo->flags = flags;
+	bo->size = args.size;
+	bo->drm = drm;
+
+	*bop = bo;
 
 	return 0;
 }
@@ -455,6 +459,7 @@ drm_public
 int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 			     int fd, uint32_t flags)
 {
+	struct drm_tegra_bo *bo;
 	uint32_t handle;
 	uint32_t size;
 	int err;
@@ -462,17 +467,27 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	if (!drm || !bop)
 		return -EINVAL;
 
+	bo = calloc(1, sizeof(*bo));
+	if (!bo)
+		return -ENOMEM;
+
 	err = drmPrimeFDToHandle(drm->fd, fd, &handle);
-	if (err)
+	if (err) {
+		free(bo);
 		return err;
+	}
 
 	/* lseek() to get bo size */
 	size = lseek(fd, 0, SEEK_END);
 	lseek(fd, 0, SEEK_CUR);
 
-	err = drm_tegra_bo_wrap(bop, drm, handle, flags, size);
-	if (err)
-		return err;
+	atomic_set(&bo->ref, 1);
+	bo->handle = handle;
+	bo->flags = flags;
+	bo->size = size;
+	bo->drm = drm;
+
+	*bop = bo;
 
 	return 0;
 }
