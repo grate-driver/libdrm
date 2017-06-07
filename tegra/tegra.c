@@ -108,10 +108,10 @@ void drm_tegra_close(struct drm_tegra *drm)
 	if (!drm)
 		return;
 
+	drm_tegra_bo_cache_cleanup(&drm->bo_cache, 0);
+
 	if (drm->close)
 		close(drm->fd);
-
-	drm_tegra_bo_cache_cleanup(&drm->bo_cache, 0);
 
 	free(drm);
 }
