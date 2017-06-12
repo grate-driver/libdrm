@@ -73,6 +73,7 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 			     int fd, uint32_t flags);
 
 int drm_tegra_bo_get_size(struct drm_tegra_bo *bo, uint32_t *size);
+int drm_tegra_bo_forbid_caching(struct drm_tegra_bo *bo);
 
 struct drm_tegra_channel;
 struct drm_tegra_job;
