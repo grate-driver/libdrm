@@ -507,3 +507,14 @@ int drm_tegra_bo_get_size(struct drm_tegra_bo *bo, uint32_t *size)
 
 	return 0;
 }
+
+drm_public
+int drm_tegra_bo_forbid_caching(struct drm_tegra_bo *bo)
+{
+	if (!bo)
+		return -EINVAL;
+
+	bo->reuse = false;
+
+	return 0;
+}

@@ -45,6 +45,7 @@ drm_tegra_bo_from_name
 drm_tegra_bo_from_dmabuf
 drm_tegra_bo_to_dmabuf
 drm_tegra_bo_get_size
+drm_tegra_bo_forbid_caching
 EOF
 done)
 
