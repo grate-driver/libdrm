@@ -61,6 +61,9 @@ int drm_tegra_pushbuf_queue(struct drm_tegra_pushbuf_private *pushbuf)
 	cmdbuf.handle = pushbuf->bo->handle;
 	cmdbuf.offset = 0;
 
+	/* maintain mmap refcount balance upon pushbuf free'ing */
+	pushbuf->bo = NULL;
+
 	err = drm_tegra_job_add_cmdbuf(pushbuf->job, &cmdbuf);
 	if (err < 0)
 		return err;
@@ -102,8 +105,8 @@ int drm_tegra_pushbuf_free(struct drm_tegra_pushbuf *pushbuf)
 	drm_tegra_bo_unmap(priv->bo);
 
 	DRMLISTFOREACHENTRYSAFE(bo, tmp, &priv->bos, push_list) {
-		DRMLISTDEL(&priv->bo->push_list);
-		drm_tegra_bo_unref(priv->bo);
+		DRMLISTDEL(&bo->push_list);
+		drm_tegra_bo_unref(bo);
 	}
 
 	DRMLISTDEL(&priv->list);
