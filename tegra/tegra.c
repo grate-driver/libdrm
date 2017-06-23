@@ -272,31 +272,31 @@ unlock:
 
 drm_public int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 {
+	int err = 0;
+
 	if (!bo)
 		return -EINVAL;
 
 	pthread_mutex_lock(&table_lock);
 
-	if (!bo->map) {
-		pthread_mutex_unlock(&table_lock);
-		return 0;
-	}
+	if (!bo->map)
+		goto unlock;
 
-	if (--bo->mmap_ref > 0) {
-		pthread_mutex_unlock(&table_lock);
-		return 0;
-	}
+	if (--bo->mmap_ref > 0)
+		goto unlock;
 
-	if (munmap(bo->map, bo->size)) {
-		pthread_mutex_unlock(&table_lock);
-		return -errno;
+	err = munmap(bo->map, bo->size);
+	if (err < 0) {
+		err = -errno;
+		goto unlock;
 	}
-
-	pthread_mutex_unlock(&table_lock);
 
 	bo->map = NULL;
 
-	return 0;
+unlock:
+	pthread_mutex_unlock(&table_lock);
+
+	return err;
 }
 
 drm_public int drm_tegra_bo_get_flags(struct drm_tegra_bo *bo, uint32_t *flags)
