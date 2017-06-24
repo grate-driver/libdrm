@@ -221,12 +221,12 @@ int drm_tegra_bo_wrap(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	return 0;
 }
 
-struct drm_tegra_bo *drm_tegra_bo_ref(struct drm_tegra_bo *bo)
+int drm_tegra_bo_ref(struct drm_tegra_bo *bo)
 {
-	if (bo)
-		atomic_inc(&bo->ref);
+	if (!bo)
+		return -EINVAL;
 
-	return bo;
+	return atomic_inc_return(&bo->ref);
 }
 
 int drm_tegra_bo_unref(struct drm_tegra_bo *bo)
@@ -237,7 +237,7 @@ int drm_tegra_bo_unref(struct drm_tegra_bo *bo)
 		return -EINVAL;
 
 	if (!atomic_dec_and_test(&bo->ref))
-		return 0;
+		return atomic_read(&bo->ref);
 
 	pthread_mutex_lock(&table_lock);
 
