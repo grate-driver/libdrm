@@ -294,8 +294,9 @@ int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		bo->mmap_ref = 1;
 	} else {
 		bo->mmap_ref++;
-		err = 0;
 	}
+
+	err = bo->mmap_ref;
 unlock:
 	pthread_mutex_unlock(&table_lock);
 
@@ -317,8 +318,10 @@ int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 	if (!bo->map)
 		goto unlock;
 
-	if (--bo->mmap_ref > 0)
+	if (--bo->mmap_ref > 0) {
+		err = bo->mmap_ref;
 		goto unlock;
+	}
 
 	err = munmap(bo->map, bo->size);
 	if (err < 0) {
