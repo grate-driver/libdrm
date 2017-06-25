@@ -443,6 +443,7 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	}
 
 	atomic_set(&bo->ref, 1);
+	bo->name = name;
 	bo->handle = args.handle;
 	bo->flags = flags;
 	bo->size = args.size;
