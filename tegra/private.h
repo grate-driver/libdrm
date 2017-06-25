@@ -65,6 +65,17 @@ struct drm_tegra_bo_cache {
 };
 
 struct drm_tegra {
+	/* tables to keep track of bo's, to avoid "evil-twin" buffer objects:
+	 *
+	 *   handle_table: maps handle to fd_bo
+	 *   name_table: maps flink name to fd_bo
+	 *
+	 * We end up needing two tables, because DRM_IOCTL_GEM_OPEN always
+	 * returns a new handle.  So we need to figure out if the bo is already
+	 * open in the process first, before calling gem-open.
+	 */
+	void *handle_table, *name_table;
+
 	struct drm_tegra_bo_cache bo_cache;
 	bool close;
 	int fd;
