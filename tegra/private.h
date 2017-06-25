@@ -85,7 +85,6 @@ struct drm_tegra_bo {
 	struct drm_tegra *drm;
 	drmMMListHead push_list;
 	uint32_t handle;
-	uint32_t offset;
 	uint32_t flags;
 	uint32_t size;
 	uint32_t name;
