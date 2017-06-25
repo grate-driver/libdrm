@@ -78,6 +78,9 @@ int drm_tegra_job_new(struct drm_tegra_job **jobp,
 {
 	struct drm_tegra_job *job;
 
+	if (!jobp || !channel)
+		return -EINVAL;
+
 	job = calloc(1, sizeof(*job));
 	if (!job)
 		return -ENOMEM;
@@ -112,11 +115,14 @@ int drm_tegra_job_free(struct drm_tegra_job *job)
 int drm_tegra_job_submit(struct drm_tegra_job *job,
 			 struct drm_tegra_fence **fencep)
 {
-	struct drm_tegra *drm = job->channel->drm;
+	struct drm_tegra *drm;
 	struct drm_tegra_fence *fence = NULL;
 	struct drm_tegra_syncpt *syncpts;
 	struct drm_tegra_submit args;
 	int err;
+
+	if (!job)
+		return -EINVAL;
 
 	/*
 	 * Make sure the current command stream buffer is queued for
@@ -157,11 +163,13 @@ int drm_tegra_job_submit(struct drm_tegra_job *job,
 	args.relocs = (uintptr_t)job->relocs;
 	args.waitchks = 0;
 
-	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_SUBMIT, &args);
+	drm = job->channel->drm;
+	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_SUBMIT, &args,
+				  sizeof(args));
 	if (err < 0) {
 		free(syncpts);
 		free(fence);
-		return -errno;
+		return err;
 	}
 
 	if (fence) {

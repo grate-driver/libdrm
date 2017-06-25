@@ -77,6 +77,8 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 	args.handle = bo->handle;
 
 	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args);
+	if (err < 0)
+		err = -errno;
 
 	free(bo);
 
@@ -177,7 +179,6 @@ int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_CREATE, &args,
 				  sizeof(args));
 	if (err < 0) {
-		err = -errno;
 		free(bo);
 		return err;
 	}
@@ -261,7 +262,7 @@ int drm_tegra_bo_get_handle(struct drm_tegra_bo *bo, uint32_t *handle)
 
 int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 {
-	int err;
+	int err = 0;
 
 	if (!bo)
 		return -EINVAL;
@@ -274,27 +275,18 @@ int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		memset(&args, 0, sizeof(args));
 		args.handle = bo->handle;
 
-		err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_MMAP, &args,
-					  sizeof(args));
-		if (err < 0) {
-			err = -errno;
+		err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_MMAP,
+					  &args, sizeof(args));
+		if (err < 0)
 			goto unlock;
-		}
 
-		bo->offset = args.offset;
-
-		bo->map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
-			       bo->drm->fd, bo->offset);
-		if (bo->map == MAP_FAILED) {
-			bo->map = NULL;
-			err = -errno;
+		err = drmMap(bo->drm->fd, args.offset, bo->size, &bo->map);
+		if (err < 0)
 			goto unlock;
-		}
 
 		bo->mmap_ref = 1;
 	} else {
 		bo->mmap_ref++;
-		err = 0;
 	}
 unlock:
 	pthread_mutex_unlock(&table_lock);
@@ -320,7 +312,7 @@ int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 	if (--bo->mmap_ref > 0)
 		goto unlock;
 
-	err = munmap(bo->map, bo->size);
+	err = drmUnmap(bo->map, bo->size);
 	if (err < 0) {
 		err = -errno;
 		goto unlock;
@@ -348,7 +340,7 @@ int drm_tegra_bo_get_flags(struct drm_tegra_bo *bo, uint32_t *flags)
 	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_GET_FLAGS, &args,
 				  sizeof(args));
 	if (err < 0)
-		return -errno;
+		return err;
 
 	if (flags)
 		*flags = args.flags;
@@ -371,7 +363,7 @@ int drm_tegra_bo_set_flags(struct drm_tegra_bo *bo, uint32_t flags)
 	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_SET_FLAGS, &args,
 				  sizeof(args));
 	if (err < 0)
-		return -errno;
+		return err;
 
 	return 0;
 }
@@ -391,7 +383,7 @@ int drm_tegra_bo_get_tiling(struct drm_tegra_bo *bo,
 	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_GET_TILING, &args,
 				  sizeof(args));
 	if (err < 0)
-		return -errno;
+		return err;
 
 	if (tiling) {
 		tiling->mode = args.mode;
@@ -405,9 +397,8 @@ int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 			    const struct drm_tegra_bo_tiling *tiling)
 {
 	struct drm_tegra_gem_set_tiling args;
-	int err;
 
-	if (!bo)
+	if (!bo || !tiling)
 		return -EINVAL;
 
 	memset(&args, 0, sizeof(args));
@@ -415,12 +406,8 @@ int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 	args.mode = tiling->mode;
 	args.value = tiling->value;
 
-	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_SET_TILING, &args,
-				  sizeof(args));
-	if (err < 0)
-		return -errno;
-
-	return 0;
+	return drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_SET_TILING,
+				   &args, sizeof(args));
 }
 
 int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
@@ -482,6 +469,7 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 
 	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_OPEN, &args);
 	if (err < 0) {
+		err = -errno;
 		free(bo);
 		bo = NULL;
 		goto unlock;

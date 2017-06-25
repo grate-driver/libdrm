@@ -43,9 +43,10 @@ static int drm_tegra_channel_setup(struct drm_tegra_channel *channel)
 	args.context = channel->context;
 	args.index = 0;
 
-	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_GET_SYNCPT, &args);
+	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GET_SYNCPT, &args,
+				  sizeof(args));
 	if (err < 0)
-		return -errno;
+		return err;
 
 	channel->syncpt = args.id;
 
@@ -60,6 +61,9 @@ int drm_tegra_channel_open(struct drm_tegra_channel **channelp,
 	struct drm_tegra_channel *channel;
 	enum host1x_class class;
 	int err;
+
+	if (!channelp || !drm)
+		return -EINVAL;
 
 	switch (client) {
 	case DRM_TEGRA_GR2D:
@@ -83,10 +87,11 @@ int drm_tegra_channel_open(struct drm_tegra_channel **channelp,
 	memset(&args, 0, sizeof(args));
 	args.client = class;
 
-	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_OPEN_CHANNEL, &args);
+	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_OPEN_CHANNEL, &args,
+				  sizeof(args));
 	if (err < 0) {
 		free(channel);
-		return -errno;
+		return err;
 	}
 
 	channel->context = args.context;
@@ -117,9 +122,10 @@ int drm_tegra_channel_close(struct drm_tegra_channel *channel)
 	memset(&args, 0, sizeof(args));
 	args.context = channel->context;
 
-	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_CLOSE_CHANNEL, &args);
+	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_CLOSE_CHANNEL, &args,
+				  sizeof(args));
 	if (err < 0)
-		return -errno;
+		return err;
 
 	free(channel);
 
