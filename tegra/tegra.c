@@ -40,6 +40,23 @@
 
 drm_private pthread_mutex_t table_lock = PTHREAD_MUTEX_INITIALIZER;
 
+/* lookup a buffer, call with table_lock mutex locked */
+static struct drm_tegra_bo * lookup_bo(void *table, uint32_t key)
+{
+	struct drm_tegra_bo *bo;
+
+	if (drmHashLookup(table, key, (void **)&bo))
+		return NULL;
+
+	/* found, increment reference count */
+	atomic_inc(&bo->ref);
+
+	/* don't break the bucket if this BO was found in one */
+	DRMLISTDELINIT(&bo->bo_list);
+
+	return bo;
+}
+
 drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 {
 	struct drm_tegra *drm = bo->drm;
@@ -50,6 +67,11 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 
 	if (bo->map)
 		munmap(bo->map, bo->size);
+
+	if (bo->name)
+		drmHashDelete(drm->name_table, bo->name);
+
+	drmHashDelete(drm->handle_table, bo->handle);
 
 	memset(&args, 0, sizeof(args));
 	args.handle = bo->handle;
@@ -76,6 +98,11 @@ static int drm_tegra_wrap(struct drm_tegra **drmp, int fd, bool close)
 	drm->fd = fd;
 
 	drm_tegra_bo_cache_init(&drm->bo_cache, false);
+	drm->handle_table = drmHashCreate();
+	drm->name_table = drmHashCreate();
+
+	if (!drm->handle_table || !drm->name_table)
+		return -ENOMEM;
 
 	*drmp = drm;
 
@@ -108,6 +135,8 @@ void drm_tegra_close(struct drm_tegra *drm)
 		return;
 
 	drm_tegra_bo_cache_cleanup(&drm->bo_cache, 0);
+	drmHashDestroy(drm->handle_table);
+	drmHashDestroy(drm->name_table);
 
 	if (drm->close)
 		close(drm->fd);
@@ -156,6 +185,9 @@ int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	bo->handle = args.handle;
 
 	VG_BO_ALLOC(bo);
+
+	/* add ourselves into the handle table */
+	drmHashInsert(drm->handle_table, args.handle, bo);
 out:
 	*bop = bo;
 
@@ -199,7 +231,6 @@ struct drm_tegra_bo *drm_tegra_bo_ref(struct drm_tegra_bo *bo)
 
 int drm_tegra_bo_unref(struct drm_tegra_bo *bo)
 {
-	struct drm_tegra *drm;
 	int err = 0;
 
 	if (!bo)
@@ -208,11 +239,9 @@ int drm_tegra_bo_unref(struct drm_tegra_bo *bo)
 	if (!atomic_dec_and_test(&bo->ref))
 		return 0;
 
-	drm = bo->drm;
-
 	pthread_mutex_lock(&table_lock);
 
-	if (!bo->reuse || (drm_tegra_bo_cache_free(&drm->bo_cache, bo) != 0))
+	if (!bo->reuse || drm_tegra_bo_cache_free(&bo->drm->bo_cache, bo))
 		err = drm_tegra_bo_free(bo);
 
 	pthread_mutex_unlock(&table_lock);
@@ -232,8 +261,10 @@ int drm_tegra_bo_get_handle(struct drm_tegra_bo *bo, uint32_t *handle)
 
 int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 {
-	struct drm_tegra *drm = bo->drm;
 	int err;
+
+	if (!bo)
+		return -EINVAL;
 
 	pthread_mutex_lock(&table_lock);
 
@@ -243,7 +274,7 @@ int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		memset(&args, 0, sizeof(args));
 		args.handle = bo->handle;
 
-		err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_MMAP, &args,
+		err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_MMAP, &args,
 					  sizeof(args));
 		if (err < 0) {
 			err = -errno;
@@ -253,7 +284,7 @@ int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		bo->offset = args.offset;
 
 		bo->map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
-			       drm->fd, bo->offset);
+			       bo->drm->fd, bo->offset);
 		if (bo->map == MAP_FAILED) {
 			bo->map = NULL;
 			err = -errno;
@@ -276,37 +307,36 @@ unlock:
 
 int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 {
+	int err = 0;
+
 	if (!bo)
 		return -EINVAL;
 
 	pthread_mutex_lock(&table_lock);
 
-	if (!bo->map) {
-		pthread_mutex_unlock(&table_lock);
-		return 0;
-	}
+	if (!bo->map)
+		goto unlock;
 
-	if (--bo->mmap_ref > 0) {
-		pthread_mutex_unlock(&table_lock);
-		return 0;
-	}
+	if (--bo->mmap_ref > 0)
+		goto unlock;
 
-	if (munmap(bo->map, bo->size)) {
-		pthread_mutex_unlock(&table_lock);
-		return -errno;
+	err = munmap(bo->map, bo->size);
+	if (err < 0) {
+		err = -errno;
+		goto unlock;
 	}
-
-	pthread_mutex_unlock(&table_lock);
 
 	bo->map = NULL;
 
-	return 0;
+unlock:
+	pthread_mutex_unlock(&table_lock);
+
+	return err;
 }
 
 int drm_tegra_bo_get_flags(struct drm_tegra_bo *bo, uint32_t *flags)
 {
 	struct drm_tegra_gem_get_flags args;
-	struct drm_tegra *drm = bo->drm;
 	int err;
 
 	if (!bo)
@@ -315,7 +345,7 @@ int drm_tegra_bo_get_flags(struct drm_tegra_bo *bo, uint32_t *flags)
 	memset(&args, 0, sizeof(args));
 	args.handle = bo->handle;
 
-	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_GET_FLAGS, &args,
+	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_GET_FLAGS, &args,
 				  sizeof(args));
 	if (err < 0)
 		return -errno;
@@ -329,7 +359,6 @@ int drm_tegra_bo_get_flags(struct drm_tegra_bo *bo, uint32_t *flags)
 int drm_tegra_bo_set_flags(struct drm_tegra_bo *bo, uint32_t flags)
 {
 	struct drm_tegra_gem_get_flags args;
-	struct drm_tegra *drm = bo->drm;
 	int err;
 
 	if (!bo)
@@ -339,7 +368,7 @@ int drm_tegra_bo_set_flags(struct drm_tegra_bo *bo, uint32_t flags)
 	args.handle = bo->handle;
 	args.flags = flags;
 
-	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_SET_FLAGS, &args,
+	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_SET_FLAGS, &args,
 				  sizeof(args));
 	if (err < 0)
 		return -errno;
@@ -351,7 +380,6 @@ int drm_tegra_bo_get_tiling(struct drm_tegra_bo *bo,
 			    struct drm_tegra_bo_tiling *tiling)
 {
 	struct drm_tegra_gem_get_tiling args;
-	struct drm_tegra *drm = bo->drm;
 	int err;
 
 	if (!bo)
@@ -360,7 +388,7 @@ int drm_tegra_bo_get_tiling(struct drm_tegra_bo *bo,
 	memset(&args, 0, sizeof(args));
 	args.handle = bo->handle;
 
-	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_GET_TILING, &args,
+	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_GET_TILING, &args,
 				  sizeof(args));
 	if (err < 0)
 		return -errno;
@@ -377,7 +405,6 @@ int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 			    const struct drm_tegra_bo_tiling *tiling)
 {
 	struct drm_tegra_gem_set_tiling args;
-	struct drm_tegra *drm = bo->drm;
 	int err;
 
 	if (!bo)
@@ -388,7 +415,7 @@ int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 	args.mode = tiling->mode;
 	args.value = tiling->value;
 
-	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_SET_TILING, &args,
+	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_SET_TILING, &args,
 				  sizeof(args));
 	if (err < 0)
 		return -errno;
@@ -412,8 +439,13 @@ int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
 		if (err < 0)
 			return -errno;
 
+		pthread_mutex_lock(&table_lock);
+
+		drmHashInsert(bo->drm->name_table, args.name, bo);
 		bo->name = args.name;
 		bo->reuse = false;
+
+		pthread_mutex_unlock(&table_lock);
 	}
 
 	*name = bo->name;
@@ -425,15 +457,25 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 			   uint32_t name, uint32_t flags)
 {
 	struct drm_gem_open args;
+	struct drm_tegra_bo *dup;
 	struct drm_tegra_bo *bo;
-	int err;
+	int err = 0;
 
 	if (!drm || !name || !bop)
 		return -EINVAL;
 
+	pthread_mutex_lock(&table_lock);
+
+	/* check name table first, to see if BO is already open */
+	bo = lookup_bo(drm->name_table, name);
+	if (bo)
+		goto unlock;
+
 	bo = calloc(1, sizeof(*bo));
-	if (!bo)
-		return -ENOMEM;
+	if (!bo) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	memset(&args, 0, sizeof(args));
 	args.name = name;
@@ -441,10 +483,21 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_OPEN, &args);
 	if (err < 0) {
 		free(bo);
-		return -errno;
+		bo = NULL;
+		goto unlock;
 	}
 
+	/* check handle table second, to see if BO is already open */
+	dup = lookup_bo(drm->handle_table, args.handle);
+	if (dup) {
+		free(bo);
+		bo = dup;
+		goto unlock;
+	}
+
+	drmHashInsert(drm->name_table, name, bo);
 	atomic_set(&bo->ref, 1);
+	bo->name = name;
 	bo->handle = args.handle;
 	bo->flags = flags;
 	bo->size = args.size;
@@ -452,21 +505,24 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 
 	VG_BO_ALLOC(bo);
 
+unlock:
+	pthread_mutex_unlock(&table_lock);
+
 	*bop = bo;
 
-	return 0;
+	return err;
 }
 
 int drm_tegra_bo_to_dmabuf(struct drm_tegra_bo *bo, uint32_t *handle)
 {
-	struct drm_tegra *drm = bo->drm;
 	int prime_fd;
 	int err;
 
 	if (!bo || !handle)
 		return -EINVAL;
 
-	err = drmPrimeHandleToFD(drm->fd, bo->handle, DRM_CLOEXEC, &prime_fd);
+	err = drmPrimeHandleToFD(bo->drm->fd, bo->handle, DRM_CLOEXEC,
+				 &prime_fd);
 	if (err)
 		return err;
 
@@ -480,6 +536,7 @@ int drm_tegra_bo_to_dmabuf(struct drm_tegra_bo *bo, uint32_t *handle)
 int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 			     int fd, uint32_t flags)
 {
+	struct drm_tegra_bo *dup;
 	struct drm_tegra_bo *bo;
 	uint32_t handle;
 	uint32_t size;
@@ -488,14 +545,27 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	if (!drm || !bop)
 		return -EINVAL;
 
+	pthread_mutex_lock(&table_lock);
+
 	bo = calloc(1, sizeof(*bo));
-	if (!bo)
-		return -ENOMEM;
+	if (!bo) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	err = drmPrimeFDToHandle(drm->fd, fd, &handle);
 	if (err) {
 		free(bo);
-		return err;
+		bo = NULL;
+		goto unlock;
+	}
+
+	/* check handle table to see if BO is already open */
+	dup = lookup_bo(drm->handle_table, handle);
+	if (dup) {
+		free(bo);
+		bo = dup;
+		goto unlock;
 	}
 
 	/* lseek() to get bo size */
@@ -509,6 +579,9 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	bo->drm = drm;
 
 	VG_BO_ALLOC(bo);
+
+unlock:
+	pthread_mutex_unlock(&table_lock);
 
 	*bop = bo;
 
