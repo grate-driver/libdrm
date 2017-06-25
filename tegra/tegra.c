@@ -276,8 +276,8 @@ int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		memset(&args, 0, sizeof(args));
 		args.handle = bo->handle;
 
-		err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_MMAP, &args,
-					  sizeof(args));
+		err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_MMAP,
+					  &args, sizeof(args));
 		if (err < 0) {
 			err = -errno;
 			goto unlock;
@@ -285,13 +285,9 @@ int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 
 		bo->offset = args.offset;
 
-		bo->map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
-			       bo->drm->fd, bo->offset);
-		if (bo->map == MAP_FAILED) {
-			bo->map = NULL;
-			err = -errno;
+		err = drmMap(bo->drm->fd, bo->offset, bo->size, &bo->map);
+		if (err < 0)
 			goto unlock;
-		}
 
 		bo->mmap_ref = 1;
 	} else {
@@ -322,7 +318,7 @@ int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 	if (--bo->mmap_ref > 0)
 		goto unlock;
 
-	err = munmap(bo->map, bo->size);
+	err = drmUnmap(bo->map, bo->size);
 	if (err < 0) {
 		err = -errno;
 		goto unlock;
