@@ -77,6 +77,9 @@ int drm_tegra_pushbuf_new(struct drm_tegra_pushbuf **pushbufp,
 {
 	struct drm_tegra_pushbuf_private *pushbuf;
 
+	if (!pushbufp || !job)
+		return -EINVAL;
+
 	pushbuf = calloc(1, sizeof(*pushbuf));
 	if (!pushbuf)
 		return -ENOMEM;
@@ -125,11 +128,17 @@ drm_public
 int drm_tegra_pushbuf_prepare(struct drm_tegra_pushbuf *pushbuf,
 			      unsigned int words)
 {
-	struct drm_tegra_pushbuf_private *priv = drm_tegra_pushbuf(pushbuf);
-	struct drm_tegra_channel *channel = priv->job->channel;
+	struct drm_tegra_pushbuf_private *priv;
+	struct drm_tegra_channel *channel;
 	struct drm_tegra_bo *bo;
 	void *ptr;
 	int err;
+
+	if (!pushbuf || !words)
+		return -EINVAL;
+
+	priv = drm_tegra_pushbuf(pushbuf);
+	channel = priv->job->channel;
 
 	if (priv->bo && (pushbuf->ptr + words < priv->end))
 		return 0;
@@ -173,10 +182,14 @@ int drm_tegra_pushbuf_relocate(struct drm_tegra_pushbuf *pushbuf,
 			       unsigned long offset,
 			       unsigned long shift)
 {
-	struct drm_tegra_pushbuf_private *priv = drm_tegra_pushbuf(pushbuf);
+	struct drm_tegra_pushbuf_private *priv;
 	struct drm_tegra_reloc reloc;
 	int err;
 
+	if (!pushbuf || !target)
+		return -EINVAL;
+
+	priv = drm_tegra_pushbuf(pushbuf);
 	err = drm_tegra_pushbuf_prepare(pushbuf, 1);
 	if (err < 0)
 		return err;
@@ -201,12 +214,16 @@ drm_public
 int drm_tegra_pushbuf_sync(struct drm_tegra_pushbuf *pushbuf,
 			   enum drm_tegra_syncpt_cond cond)
 {
-	struct drm_tegra_pushbuf_private *priv = drm_tegra_pushbuf(pushbuf);
+	struct drm_tegra_pushbuf_private *priv;
 	int err;
+
+	if (!pushbuf)
+		return -EINVAL;
 
 	if (cond >= DRM_TEGRA_SYNCPT_COND_MAX)
 		return -EINVAL;
 
+	priv = drm_tegra_pushbuf(pushbuf);
 	err = drm_tegra_pushbuf_prepare(pushbuf, 2);
 	if (err < 0)
 		return err;
