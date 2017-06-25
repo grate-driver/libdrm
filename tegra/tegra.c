@@ -77,6 +77,8 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 	args.handle = bo->handle;
 
 	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_CLOSE, &args);
+	if (err < 0)
+		err = -errno;
 
 	free(bo);
 
@@ -482,6 +484,7 @@ int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 
 	err = drmIoctl(drm->fd, DRM_IOCTL_GEM_OPEN, &args);
 	if (err < 0) {
+		err = -errno;
 		free(bo);
 		bo = NULL;
 		goto unlock;
