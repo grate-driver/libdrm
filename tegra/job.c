@@ -167,11 +167,12 @@ int drm_tegra_job_submit(struct drm_tegra_job *job,
 	args.waitchks = 0;
 
 	drm = job->channel->drm;
-	err = drmIoctl(drm->fd, DRM_IOCTL_TEGRA_SUBMIT, &args);
+	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_SUBMIT, &args,
+				  sizeof(args));
 	if (err < 0) {
 		free(syncpts);
 		free(fence);
-		return -errno;
+		return err;
 	}
 
 	if (fence) {

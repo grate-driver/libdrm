@@ -38,7 +38,6 @@ int drm_tegra_fence_wait_timeout(struct drm_tegra_fence *fence,
 				 unsigned long timeout)
 {
 	struct drm_tegra_syncpt_wait args;
-	int err;
 
 	if (!fence)
 		return -EINVAL;
@@ -48,11 +47,8 @@ int drm_tegra_fence_wait_timeout(struct drm_tegra_fence *fence,
 	args.thresh = fence->value;
 	args.timeout = timeout;
 
-	err = drmIoctl(fence->drm->fd, DRM_IOCTL_TEGRA_SYNCPT_WAIT, &args);
-	if (err < 0)
-		return -errno;
-
-	return 0;
+	return drmCommandWriteRead(fence->drm->fd, DRM_TEGRA_SYNCPT_WAIT,
+				   &args, sizeof(args));
 }
 
 drm_public
