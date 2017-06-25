@@ -597,7 +597,7 @@ unlock:
 
 	*bop = bo;
 
-	return 0;
+	return err;
 }
 
 drm_public
