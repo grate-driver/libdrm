@@ -152,7 +152,7 @@ static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 				  bo_list);
 		/* TODO check for compatible flags? */
 		if (is_idle(bo)) {
-			DRMLISTDEL(&bo->bo_list);
+			DRMLISTDELINIT(&bo->bo_list);
 		} else {
 			bo = NULL;
 		}
