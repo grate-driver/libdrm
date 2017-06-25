@@ -396,7 +396,7 @@ drm_public int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 	struct drm_tegra_gem_set_tiling args;
 	int err;
 
-	if (!bo)
+	if (!bo || !tiling)
 		return -EINVAL;
 
 	memset(&args, 0, sizeof(args));

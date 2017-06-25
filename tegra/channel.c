@@ -62,6 +62,9 @@ int drm_tegra_channel_open(struct drm_tegra_channel **channelp,
 	enum host1x_class class;
 	int err;
 
+	if (!channelp || !drm)
+		return -EINVAL;
+
 	switch (client) {
 	case DRM_TEGRA_GR2D:
 		class = HOST1X_CLASS_GR2D;

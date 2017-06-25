@@ -40,6 +40,9 @@ int drm_tegra_fence_wait_timeout(struct drm_tegra_fence *fence,
 	struct drm_tegra_syncpt_wait args;
 	int err;
 
+	if (!fence)
+		return -EINVAL;
+
 	memset(&args, 0, sizeof(args));
 	args.id = fence->syncpt;
 	args.thresh = fence->value;
