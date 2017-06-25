@@ -597,7 +597,7 @@ unlock:
 
 	*bop = bo;
 
-	return 0;
+	return err;
 }
 
 int drm_tegra_bo_get_size(struct drm_tegra_bo *bo, uint32_t *size)
