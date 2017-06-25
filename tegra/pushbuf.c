@@ -170,7 +170,7 @@ int drm_tegra_pushbuf_prepare(struct drm_tegra_pushbuf *pushbuf,
 	DRMLISTADD(&bo->push_list, &priv->bos);
 
 	priv->start = priv->base.ptr = ptr;
-	priv->end = priv->start + bo->size;
+	priv->end = priv->start + bo->size / sizeof(uint32_t);
 	priv->bo = bo;
 
 	return 0;
