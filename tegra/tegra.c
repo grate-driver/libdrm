@@ -279,9 +279,7 @@ drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 			goto unlock;
 		}
 
-		bo->offset = args.offset;
-
-		err = drmMap(bo->drm->fd, bo->offset, bo->size, &bo->map);
+		err = drmMap(bo->drm->fd, args.offset, bo->size, &bo->map);
 		if (err < 0)
 			goto unlock;
 
