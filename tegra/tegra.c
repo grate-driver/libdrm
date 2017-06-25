@@ -258,7 +258,7 @@ drm_public int drm_tegra_bo_get_handle(struct drm_tegra_bo *bo, uint32_t *handle
 
 drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 {
-	int err;
+	int err = 0;
 
 	if (!bo)
 		return -EINVAL;
@@ -283,7 +283,6 @@ drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		bo->mmap_ref = 1;
 	} else {
 		bo->mmap_ref++;
-		err = 0;
 	}
 unlock:
 	pthread_mutex_unlock(&table_lock);
