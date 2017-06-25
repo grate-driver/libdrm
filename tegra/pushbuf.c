@@ -96,12 +96,13 @@ int drm_tegra_pushbuf_new(struct drm_tegra_pushbuf **pushbufp,
 drm_public
 int drm_tegra_pushbuf_free(struct drm_tegra_pushbuf *pushbuf)
 {
-	struct drm_tegra_pushbuf_private *priv = drm_tegra_pushbuf(pushbuf);
+	struct drm_tegra_pushbuf_private *priv;
 	struct drm_tegra_bo *bo, *tmp;
 
 	if (!pushbuf)
 		return -EINVAL;
 
+	priv = drm_tegra_pushbuf(pushbuf);
 	drm_tegra_bo_unmap(priv->bo);
 
 	DRMLISTFOREACHENTRYSAFE(bo, tmp, &priv->bos, push_list) {
