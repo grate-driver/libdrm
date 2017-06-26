@@ -183,8 +183,12 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 
 	VG_BO_ALLOC(bo);
 
+	pthread_mutex_lock(&table_lock);
+
 	/* add ourselves into the handle table */
 	drmHashInsert(drm->handle_table, args.handle, bo);
+
+	pthread_mutex_unlock(&table_lock);
 out:
 	*bop = bo;
 
