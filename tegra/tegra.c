@@ -384,6 +384,10 @@ int drm_tegra_bo_set_flags(struct drm_tegra_bo *bo, uint32_t flags)
 	if (!bo)
 		return -EINVAL;
 
+	/* flags are persistent if BO is reusable */
+	if (bo->reuse && bo->flags == flags)
+		return 0;
+
 	memset(&args, 0, sizeof(args));
 	args.handle = bo->handle;
 	args.flags = flags;
@@ -392,6 +396,8 @@ int drm_tegra_bo_set_flags(struct drm_tegra_bo *bo, uint32_t flags)
 				  sizeof(args));
 	if (err < 0)
 		return err;
+
+	bo->flags = flags;
 
 	return 0;
 }
