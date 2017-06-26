@@ -616,6 +616,9 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 
 	VG_BO_ALLOC(bo);
 
+	/* add ourself into the handle table: */
+	drmHashInsert(drm->handle_table, handle, bo);
+
 unlock:
 	pthread_mutex_unlock(&table_lock);
 
