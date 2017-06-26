@@ -199,13 +199,23 @@ int drm_tegra_bo_wrap(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 		      uint32_t handle, uint32_t flags, uint32_t size)
 {
 	struct drm_tegra_bo *bo;
+	int err = 0;
 
 	if (!drm || !bop)
 		return -EINVAL;
 
+	pthread_mutex_lock(&table_lock);
+
+	/* check handle table to see if BO is already open */
+	bo = lookup_bo(drm->handle_table, handle);
+	if (bo)
+		goto unlock;
+
 	bo = calloc(1, sizeof(*bo));
-	if (!bo)
-		return -ENOMEM;
+	if (!bo) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	DRMINITLISTHEAD(&bo->push_list);
 	DRMINITLISTHEAD(&bo->bo_list);
@@ -217,9 +227,15 @@ int drm_tegra_bo_wrap(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 
 	VG_BO_ALLOC(bo);
 
+	/* add ourselves into the handle table */
+	drmHashInsert(drm->handle_table, handle, bo);
+
+unlock:
+	pthread_mutex_unlock(&table_lock);
+
 	*bop = bo;
 
-	return 0;
+	return err;
 }
 
 struct drm_tegra_bo *drm_tegra_bo_ref(struct drm_tegra_bo *bo)
