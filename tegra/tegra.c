@@ -580,9 +580,12 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 		goto unlock;
 	}
 
+	errno = 0;
 	/* lseek() to get bo size */
 	size = lseek(fd, 0, SEEK_END);
 	lseek(fd, 0, SEEK_CUR);
+	/* store lseek() error number */
+	err = -errno;
 
 	atomic_set(&bo->ref, 1);
 	bo->handle = handle;
@@ -594,6 +597,12 @@ int drm_tegra_bo_from_dmabuf(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 
 	/* add ourself into the handle table: */
 	drmHashInsert(drm->handle_table, handle, bo);
+
+	/* handle lseek() error */
+	if (err) {
+		drm_tegra_bo_free(bo);
+		bo = NULL;
+	}
 
 unlock:
 	pthread_mutex_unlock(&table_lock);
