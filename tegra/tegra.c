@@ -156,6 +156,9 @@ int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	if (!drm || size == 0 || !bop)
 		return -EINVAL;
 
+	if (flags & ~DRM_TEGRA_GEM_FLAGS)
+		return -EINVAL;
+
 	bo = drm_tegra_bo_cache_alloc(&drm->bo_cache, &size, flags);
 	if (bo)
 		goto out;
@@ -201,6 +204,9 @@ int drm_tegra_bo_wrap(struct drm_tegra_bo **bop, struct drm_tegra *drm,
 	struct drm_tegra_bo *bo;
 
 	if (!drm || !bop)
+		return -EINVAL;
+
+	if (flags & ~DRM_TEGRA_GEM_FLAGS)
 		return -EINVAL;
 
 	bo = calloc(1, sizeof(*bo));
@@ -382,6 +388,9 @@ int drm_tegra_bo_set_flags(struct drm_tegra_bo *bo, uint32_t flags)
 	int err;
 
 	if (!bo)
+		return -EINVAL;
+
+	if (flags & ~DRM_TEGRA_GEM_FLAGS)
 		return -EINVAL;
 
 	/* flags are persistent if BO is reusable */
