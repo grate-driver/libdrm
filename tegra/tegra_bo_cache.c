@@ -30,6 +30,7 @@
 
 #include <assert.h>
 #include <pthread.h>
+#include <string.h>
 
 #include "private.h"
 
@@ -137,7 +138,10 @@ static int is_idle(struct drm_tegra_bo *bo)
 static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 					   uint32_t flags)
 {
+	struct drm_tegra_bo_tiling tiling;
 	struct drm_tegra_bo *bo = NULL;
+	struct drm_tegra_bo *tmp;
+	int err;
 
 	/* TODO .. if we had an ALLOC_FOR_RENDER flag like intel, we could
 	 * skip the busy check.. if it is only going to be a render target
@@ -148,15 +152,29 @@ static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 	 */
 	pthread_mutex_lock(&table_lock);
 	if (!DRMLISTEMPTY(&bucket->list)) {
-		bo = DRMLISTENTRY(struct drm_tegra_bo, bucket->list.next,
+		tmp = DRMLISTENTRY(struct drm_tegra_bo, bucket->list.next,
 				  bo_list);
-		/* TODO check for compatible flags? */
-		if (is_idle(bo)) {
-			DRMLISTDELINIT(&bo->bo_list);
-		} else {
-			bo = NULL;
-		}
+
+		if (!is_idle(tmp))
+			goto unlock;
+
+		/* XXX: Better error handling? */
+		err = drm_tegra_bo_set_flags(tmp, flags);
+		if (err < 0)
+			goto unlock;
+
+		/* reset tiling mode */
+		memset(&tiling, 0, sizeof(tiling));
+
+		/* XXX: Better error handling? */
+		err = drm_tegra_bo_set_tiling(tmp, &tiling);
+		if (err < 0)
+			goto unlock;
+
+		DRMLISTDELINIT(&tmp->bo_list);
+		bo = tmp;
 	}
+unlock:
 	pthread_mutex_unlock(&table_lock);
 
 	return bo;
