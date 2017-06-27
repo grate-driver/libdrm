@@ -305,24 +305,7 @@ drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		bo->mmap_ref++;
 	}
 
-#ifdef HAVE_VALGRIND
-	if (RUNNING_ON_VALGRIND) {
-		/*
-		 * BO is mapped on creation under valgrind, hence
-		 * disable access.
-		 */
-		if (bo->mmap_ref == 1)
-			VALGRIND_MAKE_MEM_NOACCESS(bo->map, bo->size);
-
-		/*
-		 * BO is already mapped under valgrind, hence enable
-		 * access.
-		 */
-		if (bo->mmap_ref == 2)
-			VALGRIND_MAKE_MEM_DEFINED(bo->map, bo->size);
-	}
-#endif
-
+	VG_BO_MMAP(bo);
 unlock:
 	pthread_mutex_unlock(&table_lock);
 
@@ -344,14 +327,7 @@ drm_public int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 	if (!bo->map)
 		goto unlock;
 
-#ifdef HAVE_VALGRIND
-	/*
-	 * mmap_ref is bumped by one under valgrind, hence disable
-	 * access on 2
-	 */
-	if (RUNNING_ON_VALGRIND && bo->mmap_ref == 2)
-		VALGRIND_MAKE_MEM_NOACCESS(bo->map, bo->size);
-#endif
+	VG_BO_UNMMAP(bo);
 
 	if (--bo->mmap_ref > 0)
 		goto unlock;
