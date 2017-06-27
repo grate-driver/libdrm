@@ -173,13 +173,14 @@ static inline void VG_BO_ALLOC(struct drm_tegra_bo *bo)
 
 	if (bo && RUNNING_ON_VALGRIND) {
 		drm_tegra_bo_map(bo, &map);
-		VALGRIND_MALLOCLIKE_BLOCK(map, bo->size, 0, 1);
+		VALGRIND_FREELIKE_BLOCK(map, 0);
 	}
 }
 
 static inline void VG_BO_FREE(struct drm_tegra_bo *bo)
 {
-	VALGRIND_FREELIKE_BLOCK(bo->map, 0);
+	if (bo->mmap_ref > 1)
+		VALGRIND_FREELIKE_BLOCK(bo->map, 0);
 }
 
 /*
@@ -197,7 +198,14 @@ static inline void VG_BO_RELEASE(struct drm_tegra_bo *bo)
 	if (RUNNING_ON_VALGRIND) {
 		VALGRIND_DISABLE_ADDR_ERROR_REPORTING_IN_RANGE(bo, sizeof(*bo));
 		VALGRIND_MAKE_MEM_NOACCESS(bo, sizeof(*bo));
-		VALGRIND_FREELIKE_BLOCK(bo->map, 0);
+		/*
+		 * Disable access in case of an unbalanced BO mmappings to
+		 * simulate the unmap that we perform on BO freeing and
+		 * avoid double freelike marking that would be reported
+		 * by valgrind.
+		 */
+		if (bo->mmap_ref > 1)
+			VALGRIND_FREELIKE_BLOCK(bo->map, 0);
 	}
 }
 static inline void VG_BO_OBTAIN(struct drm_tegra_bo *bo)
@@ -205,7 +213,35 @@ static inline void VG_BO_OBTAIN(struct drm_tegra_bo *bo)
 	if (RUNNING_ON_VALGRIND) {
 		VALGRIND_MAKE_MEM_DEFINED(bo, sizeof(*bo));
 		VALGRIND_ENABLE_ADDR_ERROR_REPORTING_IN_RANGE(bo, sizeof(*bo));
-		VALGRIND_MALLOCLIKE_BLOCK(bo->map, bo->size, 0, 1);
+	}
+}
+
+/*
+ * Since we don't really unmap BO under valgrind, we need to mark the
+ * mapped region as freed on BO unmapping in order to catch invalid
+ * memory accesses.
+ */
+static inline void VG_BO_MMAP(struct drm_tegra_bo *bo)
+{
+	if (RUNNING_ON_VALGRIND) {
+		/*
+		 * BO is mapped under valgrind on BO creation, hence
+		 * enable access. However, BO's mmap_ref is bumped by one
+		 * under valgrind, hence enable access on 2 as well.
+		 */
+		if (bo->mmap_ref < 3)
+			VALGRIND_MALLOCLIKE_BLOCK(bo->map, bo->size, 0, 1);
+	}
+}
+static inline void VG_BO_UNMMAP(struct drm_tegra_bo *bo)
+{
+	if (RUNNING_ON_VALGRIND) {
+		/*
+		 * BO's mmap_ref is bumped by one under valgrind, hence
+		 * disable access on 2.
+		 */
+		if (bo->mmap_ref == 2)
+			VALGRIND_FREELIKE_BLOCK(bo->map, 0);
 	}
 }
 #else
@@ -213,6 +249,8 @@ static inline void VG_BO_ALLOC(struct drm_tegra_bo *bo)   {}
 static inline void VG_BO_FREE(struct drm_tegra_bo *bo)    {}
 static inline void VG_BO_RELEASE(struct drm_tegra_bo *bo) {}
 static inline void VG_BO_OBTAIN(struct drm_tegra_bo *bo)  {}
+static inline void VG_BO_MMAP(struct drm_tegra_bo *bo)    {}
+static inline void VG_BO_UNMMAP(struct drm_tegra_bo *bo)  {}
 #endif
 
 #endif /* __DRM_TEGRA_PRIVATE_H__ */
