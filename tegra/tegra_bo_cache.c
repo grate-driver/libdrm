@@ -30,6 +30,7 @@
 
 #include <assert.h>
 #include <pthread.h>
+#include <string.h>
 
 #include "private.h"
 
@@ -162,6 +163,26 @@ static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 	return bo;
 }
 
+static void reset_bo(struct drm_tegra_bo *bo, uint32_t flags)
+{
+	struct drm_tegra_bo_tiling tiling;
+
+	VG_BO_OBTAIN(bo);
+
+	/* XXX: Error handling? */
+	drm_tegra_bo_set_flags(bo, flags);
+
+	/* reset tiling mode */
+	memset(&tiling, 0, sizeof(tiling));
+
+	/* XXX: Error handling? */
+	drm_tegra_bo_set_tiling(bo, &tiling);
+
+	/* reset reference counters */
+	atomic_set(&bo->ref, 1);
+	bo->mmap_ref = RUNNING_ON_VALGRIND ? 1 : 0;
+}
+
 /* NOTE: size is potentially rounded up to bucket size: */
 drm_private struct drm_tegra_bo *
 drm_tegra_bo_cache_alloc(struct drm_tegra_bo_cache *cache,
@@ -178,8 +199,7 @@ drm_tegra_bo_cache_alloc(struct drm_tegra_bo_cache *cache,
 		*size = bucket->size;
 		bo = find_in_bucket(bucket, flags);
 		if (bo) {
-			VG_BO_OBTAIN(bo);
-			atomic_set(&bo->ref, 1);
+			reset_bo(bo, flags);
 			return bo;
 		}
 	}
