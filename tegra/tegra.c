@@ -296,9 +296,13 @@ drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		if (err < 0)
 			goto unlock;
 
-		err = drmMap(bo->drm->fd, args.offset, bo->size, &bo->map);
-		if (err < 0)
+		bo->map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
+			       bo->drm->fd, args.offset);
+		if (bo->map == MAP_FAILED) {
+			bo->map = NULL;
+			err = -errno;
 			goto unlock;
+		}
 
 		bo->mmap_ref = 1;
 	} else {
@@ -332,7 +336,7 @@ drm_public int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 	if (--bo->mmap_ref > 0)
 		goto unlock;
 
-	err = drmUnmap(bo->map, bo->size);
+	err = munmap(bo->map, bo->size);
 	if (err < 0) {
 		err = -errno;
 		goto unlock;
