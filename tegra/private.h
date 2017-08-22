@@ -155,6 +155,7 @@ int drm_tegra_job_add_cmdbuf(struct drm_tegra_job *job,
 			     const struct drm_tegra_cmdbuf *cmdbuf);
 
 int drm_tegra_bo_free(struct drm_tegra_bo *bo);
+int drm_tegra_bo_map_locked(struct drm_tegra_bo *bo, void **ptr);
 
 void drm_tegra_bo_cache_init(struct drm_tegra_bo_cache *cache, bool coarse);
 void drm_tegra_bo_cache_cleanup(struct drm_tegra_bo_cache *cache, time_t time);
@@ -176,7 +177,7 @@ static inline void VG_BO_ALLOC(struct drm_tegra_bo *bo)
 	void *map;
 
 	if (bo && RUNNING_ON_VALGRIND) {
-		drm_tegra_bo_map(bo, &map);
+		drm_tegra_bo_map_locked(bo, &map);
 		VALGRIND_FREELIKE_BLOCK(map, 0);
 	}
 }
