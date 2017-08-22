@@ -276,14 +276,9 @@ drm_public int drm_tegra_bo_get_handle(struct drm_tegra_bo *bo, uint32_t *handle
 	return 0;
 }
 
-drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
+drm_private int drm_tegra_bo_map_locked(struct drm_tegra_bo *bo, void **ptr)
 {
 	int err = 0;
-
-	if (!bo)
-		return -EINVAL;
-
-	pthread_mutex_lock(&table_lock);
 
 	if (!bo->map) {
 		struct drm_tegra_gem_mmap args;
@@ -294,14 +289,14 @@ drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_MMAP,
 					  &args, sizeof(args));
 		if (err < 0)
-			goto unlock;
+			goto out;
 
 		bo->map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
 			       bo->drm->fd, args.offset);
 		if (bo->map == MAP_FAILED) {
 			bo->map = NULL;
 			err = -errno;
-			goto unlock;
+			goto out;
 		}
 
 		bo->mmap_ref = 1;
@@ -310,11 +305,25 @@ drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 	}
 
 	VG_BO_MMAP(bo);
-unlock:
-	pthread_mutex_unlock(&table_lock);
-
+out:
 	if (ptr)
 		*ptr = bo->map;
+
+	return err;
+}
+
+drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
+{
+	int err;
+
+	if (!bo)
+		return -EINVAL;
+
+	pthread_mutex_lock(&table_lock);
+
+	err = drm_tegra_bo_map_locked(bo, ptr);
+
+	pthread_mutex_unlock(&table_lock);
 
 	return err;
 }
