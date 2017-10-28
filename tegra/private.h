@@ -64,6 +64,11 @@ struct drm_tegra_bo_cache {
 	time_t time;
 };
 
+struct drm_tegra_bo_mmap_cache {
+	drmMMListHead list;
+	time_t time;
+};
+
 struct drm_tegra {
 	/* tables to keep track of bo's, to avoid "evil-twin" buffer objects:
 	 *
@@ -77,6 +82,7 @@ struct drm_tegra {
 	void *handle_table, *name_table;
 
 	struct drm_tegra_bo_cache bo_cache;
+	struct drm_tegra_bo_mmap_cache mmap_cache;
 	bool close;
 	int fd;
 };
@@ -99,6 +105,11 @@ struct drm_tegra_bo {
 	 */
 	drmMMListHead bo_list;	/* bucket-list entry */
 	time_t free_time;	/* time when added to bucket-list */
+
+	drmMMListHead mmap_list;	/* mmap cache-list entry */
+	time_t unmap_time;		/* time when added to cache-list */
+	void *map_cached;		/* holds cached mmap pointer */
+
 };
 
 struct drm_tegra_channel {
@@ -164,6 +175,8 @@ struct drm_tegra_bo * drm_tegra_bo_cache_alloc(
 		uint32_t *size, uint32_t flags);
 int drm_tegra_bo_cache_free(struct drm_tegra_bo_cache *cache,
 			    struct drm_tegra_bo *bo);
+void drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo);
+void *drm_tegra_bo_cache_map(struct drm_tegra_bo *bo);
 
 #ifdef HAVE_VALGRIND
 #  include <memcheck.h>
