@@ -44,7 +44,7 @@ int drm_tegra_job_add_reloc(struct drm_tegra_job *job,
 	size = (job->num_relocs + 1) * sizeof(*reloc);
 
 	relocs = realloc(job->relocs, size);
-	if (!reloc)
+	if (!relocs)
 		return -ENOMEM;
 
 	job->relocs = relocs;
