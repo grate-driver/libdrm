@@ -229,3 +229,56 @@ drm_tegra_bo_cache_free(struct drm_tegra_bo_cache *cache,
 
 	return -1;
 }
+
+static void
+drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra_bo_mmap_cache *cache,
+				time_t time)
+{
+	struct drm_tegra_bo *bo;
+
+	if (cache->time == time)
+		return;
+
+	while (!DRMLISTEMPTY(&cache->list)) {
+		bo = DRMLISTENTRY(struct drm_tegra_bo, cache->list.next,
+				  mmap_list);
+
+		/* keep things in cache for at least 3 seconds: */
+		if (time && ((time - bo->unmap_time) <= 3))
+			break;
+
+		munmap(bo->map_cached, bo->size);
+		DRMLISTDEL(&bo->mmap_list);
+		bo->map_cached = NULL;
+	}
+
+	cache->time = time;
+}
+
+drm_private void
+drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo)
+{
+	struct drm_tegra_bo_mmap_cache *cache = &bo->drm->mmap_cache;
+	struct timespec time;
+
+	clock_gettime(CLOCK_MONOTONIC, &time);
+
+	bo->unmap_time = time.tv_sec;
+	bo->map_cached = bo->map;
+
+	drm_tegra_bo_mmap_cache_cleanup(cache, time.tv_sec);
+	DRMLISTADDTAIL(&bo->mmap_list, &cache->list);
+}
+
+drm_private void *
+drm_tegra_bo_cache_map(struct drm_tegra_bo *bo)
+{
+	void *map_cached = bo->map_cached;
+
+	if (map_cached) {
+		DRMLISTDEL(&bo->mmap_list);
+		bo->map_cached = NULL;
+	}
+
+	return map_cached;
+}
