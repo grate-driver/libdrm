@@ -235,6 +235,9 @@ static inline void VG_BO_OBTAIN(struct drm_tegra_bo *bo)
 	if (RUNNING_ON_VALGRIND) {
 		/* restore BO memory accesses in valgrind */
 		VALGRIND_MAKE_MEM_DEFINED(bo, offsetof(typeof(*bo), bo_list));
+
+		if (bo->mmap_ref > 1)
+			VALGRIND_MALLOCLIKE_BLOCK(bo->map, bo->size, 0, 1);
 	}
 }
 
