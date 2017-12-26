@@ -466,7 +466,6 @@ int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
 
 		drmHashInsert(bo->drm->name_table, args.name, bo);
 		bo->name = args.name;
-		bo->reuse = false;
 
 		pthread_mutex_unlock(&table_lock);
 	}
@@ -551,8 +550,6 @@ int drm_tegra_bo_to_dmabuf(struct drm_tegra_bo *bo, uint32_t *handle)
 				 &prime_fd);
 	if (err)
 		return err;
-
-	bo->reuse = false;
 
 	*handle = prime_fd;
 
