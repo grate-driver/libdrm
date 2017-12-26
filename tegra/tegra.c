@@ -348,9 +348,10 @@ drm_public int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 	if (!bo->map)
 		goto unlock;
 
+	bo->mmap_ref--;
 	VG_BO_UNMMAP(bo);
 
-	if (--bo->mmap_ref > 0)
+	if (bo->mmap_ref > 0)
 		goto unlock;
 
 	drm_tegra_bo_cache_unmap(bo);
