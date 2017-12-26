@@ -263,9 +263,9 @@ static inline void VG_BO_UNMMAP(struct drm_tegra_bo *bo)
 	if (RUNNING_ON_VALGRIND) {
 		/*
 		 * BO's mmap_ref is bumped by one under valgrind, hence
-		 * disable access on 2.
+		 * disable access on 1.
 		 */
-		if (bo->mmap_ref == 2)
+		if (bo->mmap_ref < 2)
 			VALGRIND_FREELIKE_BLOCK(bo->map, 0);
 	}
 }
