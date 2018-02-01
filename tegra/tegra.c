@@ -59,15 +59,20 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 	struct drm_gem_close args;
 	int err;
 
-	VG_BO_FREE(bo);
+	if (bo->map) {
+		if (RUNNING_ON_VALGRIND)
+			VG_BO_UNMMAP(bo);
+		else
+			munmap(bo->map, bo->size);
 
-	if (bo->map)
-		munmap(bo->map, bo->size);
+	} else if (bo->map_cached) {
+		if (!RUNNING_ON_VALGRIND)
+			munmap(bo->map_cached, bo->size);
 
-	if (bo->map_cached) {
-		munmap(bo->map_cached, bo->size);
 		DRMLISTDEL(&bo->mmap_list);
 	}
+
+	VG_BO_FREE(bo);
 
 	if (bo->name)
 		drmHashDelete(drm->name_table, bo->name);
@@ -282,56 +287,66 @@ drm_public int drm_tegra_bo_get_handle(struct drm_tegra_bo *bo, uint32_t *handle
 	return 0;
 }
 
-drm_private int drm_tegra_bo_map_locked(struct drm_tegra_bo *bo, void **ptr)
+drm_private int __drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 {
-	int err = 0;
+	struct drm_tegra_gem_mmap args;
+	void *map;
+	int err;
 
-	if (!bo->map) {
-		struct drm_tegra_gem_mmap args;
+	map = drm_tegra_bo_cache_map(bo);
+	if (map)
+		goto out;
 
-		bo->map = drm_tegra_bo_cache_map(bo);
-		if (bo->map)
-			goto ref_mmap;
-
-		memset(&args, 0, sizeof(args));
-		args.handle = bo->handle;
-
-		err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_MMAP,
-					  &args, sizeof(args));
-		if (err < 0)
-			goto out;
-
-		bo->map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
-			       bo->drm->fd, args.offset);
-		if (bo->map == MAP_FAILED) {
-			bo->map = NULL;
-			err = -errno;
-			goto out;
-		}
-ref_mmap:
-		bo->mmap_ref = 1;
-	} else {
-		bo->mmap_ref++;
+#ifdef HAVE_VALGRIND
+	if (RUNNING_ON_VALGRIND && bo->map_vg) {
+		map = bo->map_vg;
+		goto out;
 	}
+#endif
 
-	VG_BO_MMAP(bo);
+	memset(&args, 0, sizeof(args));
+	args.handle = bo->handle;
+
+	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_MMAP,
+					&args, sizeof(args));
+	if (err < 0)
+		return err;
+
+	map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
+			bo->drm->fd, args.offset);
+	if (map == MAP_FAILED) {
+		*ptr = NULL;
+		return -errno;
+	}
 out:
-	if (ptr)
-		*ptr = bo->map;
+	*ptr = map;
 
-	return err;
+	return 0;
 }
 
 drm_public int drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 {
-	int err;
+	int err = 0;
 
 	if (!bo)
 		return -EINVAL;
 
 	pthread_mutex_lock(&table_lock);
 
-	err = drm_tegra_bo_map_locked(bo, ptr);
+	if (!bo->map) {
+		err = __drm_tegra_bo_map(bo, &bo->map);
+		if (err)
+			goto out;
+
+		VG_BO_MMAP(bo);
+
+		bo->mmap_ref = 1;
+	} else {
+		bo->mmap_ref++;
+	}
+out:
+	if (ptr)
+		*ptr = bo->map;
 
 	pthread_mutex_unlock(&table_lock);
 
@@ -348,11 +363,10 @@ drm_public int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 	if (!bo->map)
 		goto unlock;
 
-	bo->mmap_ref--;
-	VG_BO_UNMMAP(bo);
-
-	if (bo->mmap_ref > 0)
+	if (--bo->mmap_ref > 0)
 		goto unlock;
+
+	VG_BO_UNMMAP(bo);
 
 	drm_tegra_bo_cache_unmap(bo);
 	bo->map = NULL;
