@@ -38,7 +38,7 @@ drm_tegra_pushbuf_free
 drm_tegra_pushbuf_prepare
 drm_tegra_pushbuf_relocate
 drm_tegra_pushbuf_sync
-drm_tegra_fence_wait_timeou
+drm_tegra_fence_wait_timeout
 drm_tegra_fence_free
 drm_tegra_bo_get_name
 drm_tegra_bo_from_name
@@ -46,6 +46,7 @@ drm_tegra_bo_from_dmabuf
 drm_tegra_bo_to_dmabuf
 drm_tegra_bo_get_size
 drm_tegra_bo_forbid_caching
+drm_tegra_bo_cpu_prep
 EOF
 done)
 
