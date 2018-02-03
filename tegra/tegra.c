@@ -360,7 +360,7 @@ drm_public int drm_tegra_bo_unmap(struct drm_tegra_bo *bo)
 
 	pthread_mutex_lock(&table_lock);
 
-	if (!bo->map)
+	if (bo->mmap_ref == 0)
 		goto unlock;
 
 	if (--bo->mmap_ref > 0)
