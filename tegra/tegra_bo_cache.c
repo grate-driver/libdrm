@@ -181,6 +181,16 @@ static void reset_bo(struct drm_tegra_bo *bo, uint32_t flags)
 	/* reset reference counters */
 	atomic_set(&bo->ref, 1);
 	bo->mmap_ref = 0;
+
+	/*
+	 * Put mapping into the cache to dispose of it if new BO owner
+	 * won't map BO shortly.
+	 */
+	if (bo->map) {
+		drm_tegra_bo_cache_unmap(bo);
+		VG_BO_UNMMAP(bo);
+		bo->map = NULL;
+	}
 }
 
 /* NOTE: size is potentially rounded up to bucket size: */
