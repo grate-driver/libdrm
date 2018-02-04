@@ -46,7 +46,6 @@ drm_tegra_bo_from_dmabuf
 drm_tegra_bo_to_dmabuf
 drm_tegra_bo_get_size
 drm_tegra_bo_forbid_caching
-drm_tegra_bo_cpu_prep
 EOF
 done)
 
