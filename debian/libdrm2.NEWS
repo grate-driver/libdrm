@@ -1,0 +1,8 @@
+libdrm (2.3.0-4) experimental; urgency=low
+
+  * We are now shipping libdrm with the default permissions set to 666,
+    rather than the upstream default of 660. If you have untrusted users,
+    you should configure the X server to explicitly use a mode of 660 in
+    the xorg.conf.
+
+ -- David Nusinow <dnusinow@debian.org>  Wed, 18 Apr 2007 22:44:21 -0400

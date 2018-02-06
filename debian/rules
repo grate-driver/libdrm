@@ -1,0 +1,130 @@
+#!/usr/bin/make -f
+
+###
+### Configuration, decide what to build
+###
+
+# Some variables:
+DEB_HOST_ARCH     ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+DEB_HOST_ARCH_OS  ?= $(shell dpkg-architecture -qDEB_HOST_ARCH_OS)
+DEB_HOST_ARCH_CPU ?= $(shell dpkg-architecture -qDEB_HOST_ARCH_CPU)
+
+confflags = \
+	--enable-radeon \
+	--enable-amdgpu \
+	--disable-libkms \
+	$()
+
+# Linux vs. the rest:
+ifeq (linux, $(DEB_HOST_ARCH_OS))
+	confflags += --enable-udev
+	confflags += --enable-vmwgfx
+	confflags += --enable-nouveau
+	NOUVEAU = yes
+else
+	confflags += --disable-udev
+	confflags += --disable-vmwgfx
+	confflags += --disable-nouveau
+	NOUVEAU = no
+	# kfreebsd mangles freebsd's sys/types.h
+	confflags += CFLAGS="$(shell pkg-config --cflags libbsd-overlay)"
+	confflags += LDFLAGS="$(shell pkg-config --libs libbsd-overlay)"
+endif
+
+# Intel is only on x86:
+ifneq (,$(filter amd64 i386,$(DEB_HOST_ARCH_CPU)))
+ifneq (,$(filter linux kfreebsd,$(DEB_HOST_ARCH_OS)))
+	INTEL = yes
+endif
+endif
+ifeq ($(INTEL), yes)
+	confflags += --enable-intel
+else
+	confflags += --disable-intel
+endif
+
+# Exynos/Omap/Tegra are only on arm
+ifneq (,$(filter arm,$(DEB_HOST_ARCH_CPU)))
+	ARM = yes
+endif
+ifeq ($(ARM), yes)
+	confflags += --enable-exynos-experimental-api
+	confflags += --enable-omap-experimental-api
+else
+	confflags += --disable-exynos-experimental-api
+	confflags += --disable-omap-experimental-api
+endif
+
+# Etnaviv is on armhf
+ifneq (,$(filter armhf,$(DEB_HOST_ARCH)))
+	ETNAVIV = yes
+endif
+ifeq ($(ETNAVIV), yes)
+	confflags += --enable-etnaviv-experimental-api
+else
+	confflags += --disable-etnaviv-experimental-api
+endif
+
+# Tegra is on arm and arm64
+ifneq (,$(filter arm arm64,$(DEB_HOST_ARCH_CPU)))
+	TEGRA = yes
+endif
+ifeq ($(TEGRA), yes)
+	confflags += --enable-tegra-experimental-api
+else
+	confflags += --disable-tegra-experimental-api
+endif
+
+# Freedreno is on arm and arm64
+ifneq (,$(filter arm arm64,$(DEB_HOST_ARCH_CPU)))
+	FREEDRENO = yes
+endif
+ifeq ($(FREEDRENO), yes)
+	confflags += --enable-freedreno --enable-freedreno-kgsl
+else
+	confflags += --disable-freedreno
+endif
+
+###
+### Actual build
+###
+
+override_dh_autoreconf:
+	dh_autoreconf
+
+override_dh_auto_configure:
+	dh_auto_configure -- --enable-static=yes $(confflags)
+
+override_dh_auto_test:
+	dh_auto_test || echo "Test suite failure, but keeping on anyway"
+
+override_dh_install:
+	find debian/tmp -name '*.la' -delete
+	dh_install --fail-missing
+
+override_dh_makeshlibs:
+	dh_makeshlibs -plibdrm2 -V'libdrm2 (>= 2.4.81)' --add-udeb=libdrm2-udeb -- -c4
+ifeq ($(INTEL), yes)
+	dh_makeshlibs -plibdrm-intel1 -V'libdrm-intel1 (>= 2.4.75)' -- -c4
+endif
+ifeq ($(NOUVEAU), yes)
+	dh_makeshlibs -plibdrm-nouveau2 -V'libdrm-nouveau2 (>= 2.4.66)' -- -c4
+endif
+	dh_makeshlibs -plibdrm-radeon1 -V'libdrm-radeon1 (>= 2.4.39)' -- -c4
+	dh_makeshlibs -plibdrm-amdgpu1 -V'libdrm-amdgpu1 (>= 2.4.81)' -- -c4
+ifeq ($(ARM), yes)
+	dh_makeshlibs -plibdrm-omap1 -V'libdrm-omap1 (>= 2.4.38)' -- -c4
+	dh_makeshlibs -plibdrm-exynos1 -V'libdrm-exynos1 (>= 2.4.66)' -- -c4
+endif
+ifeq ($(ETNAVIV), yes)
+	dh_makeshlibs -plibdrm-etnaviv1 -V'libdrm-etnaviv1 (>= 2.4.80)' -- -c4
+endif
+ifeq ($(TEGRA), yes)
+	dh_makeshlibs -plibdrm-tegra0 -V'libdrm-tegra0' -- -c4
+endif
+ifeq ($(FREEDRENO), yes)
+	dh_makeshlibs -plibdrm-freedreno1 -V'libdrm-freedreno1 (>= 2.4.74)' -- -c4
+endif
+
+%:
+	dh $@ --with autoreconf --builddirectory=build/
