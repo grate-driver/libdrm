@@ -166,7 +166,6 @@ static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 static void reset_bo(struct drm_tegra_bo *bo, uint32_t flags)
 {
 	struct drm_tegra_bo_tiling tiling;
-	bool mapped;
 
 	VG_BO_OBTAIN(bo);
 
@@ -179,15 +178,19 @@ static void reset_bo(struct drm_tegra_bo *bo, uint32_t flags)
 	/* XXX: Error handling? */
 	drm_tegra_bo_set_tiling(bo, &tiling);
 
-	mapped = (RUNNING_ON_VALGRIND && bo->mmap_ref > 1);
-
 	/* reset reference counters */
 	atomic_set(&bo->ref, 1);
-	bo->mmap_ref = RUNNING_ON_VALGRIND ? 1 : 0;
+	bo->mmap_ref = 0;
 
-	/* mark BO as unmapped */
-	if (mapped)
+	/*
+	 * Put mapping into the cache to dispose of it if new BO owner
+	 * won't map BO shortly.
+	 */
+	if (bo->map) {
+		drm_tegra_bo_cache_unmap(bo);
 		VG_BO_UNMMAP(bo);
+		bo->map = NULL;
+	}
 }
 
 /* NOTE: size is potentially rounded up to bucket size: */
@@ -254,7 +257,9 @@ drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra_bo_mmap_cache *cache,
 		if (time && ((time - bo->unmap_time) <= 3))
 			break;
 
-		munmap(bo->map_cached, bo->size);
+		if (!RUNNING_ON_VALGRIND)
+			munmap(bo->map_cached, bo->size);
+
 		DRMLISTDEL(&bo->mmap_list);
 		bo->map_cached = NULL;
 	}
