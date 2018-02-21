@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <time.h>
 
 #include <libdrm_lists.h>
@@ -45,6 +46,45 @@
 	(((offset) + (align) - 1) & ~((align) - 1))
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+#define VDBG_DRM(DRM, FMT, ...) do {					\
+	if (DRM->debug_bo)						\
+		fprintf(stderr, "%s: %d: " FMT,				\
+		__func__, __LINE__, __VA_ARGS__);			\
+} while (0)
+
+#define DBG_BO_STATS(DRM) do {						\
+	if (DRM->debug_bo)						\
+		fprintf(stderr,						\
+			"%s: %d:\tstats: "				\
+			"total BO's allocated %d (%d bytes, "		\
+						 "%d BO's cached) "	\
+			"total BO's mapped %d (%d pages, "		\
+					      "%d pages cached of %d BO's)\n", \
+			__func__, __LINE__,				\
+			 drm->debug_bos_allocated,			\
+			 drm->debug_bos_total_size,			\
+			 drm->debug_bos_cached,				\
+			 drm->debug_bos_mapped,				\
+			 drm->debug_bos_total_pages,			\
+			 drm->debug_bos_cached_pages,			\
+			 drm->debug_bos_mappings_cached);		\
+} while (0)
+
+#define VDBG_BO(BO, FMT, ...) do {					\
+	if (BO->drm->debug_bo)						\
+		fprintf(stderr,						\
+			"%s: %d:\tBO %p size %u handle %u name %u "	\
+			"flags 0x%08X refcnt %d map %p mmap_ref %u "	\
+			"map_cached %p: "				\
+			FMT,						\
+			__func__, __LINE__, BO, BO->size, BO->handle,	\
+			BO->name, BO->flags, atomic_read(&BO->ref),	\
+			BO->map, BO->mmap_ref, BO->map_cached,		\
+			__VA_ARGS__);					\
+} while (0)
+
+#define DBG_BO(BO, FMT) VDBG_BO(BO, FMT "%s", "")
 
 enum host1x_class {
 	HOST1X_CLASS_HOST1X = 0x01,
@@ -85,11 +125,21 @@ struct drm_tegra {
 	struct drm_tegra_bo_mmap_cache mmap_cache;
 	bool close;
 	int fd;
+
+	bool debug_bo;
+	int32_t debug_bos_allocated;
+	int32_t debug_bos_total_size;
+	int32_t debug_bos_cached;
+	int32_t debug_bos_mapped;
+	int32_t debug_bos_total_pages;
+	int32_t debug_bos_cached_pages;
+	int32_t debug_bos_mappings_cached;
 };
 
 struct drm_tegra_bo {
 	struct drm_tegra *drm;
 	drmMMListHead push_list;
+	uint32_t offset;
 	uint32_t handle;
 	uint32_t flags;
 	uint32_t size;
@@ -116,6 +166,8 @@ struct drm_tegra_bo {
 
 	bool custom_tiling;
 	bool custom_flags;
+
+	uint32_t debug_size;
 };
 
 struct drm_tegra_channel {
@@ -175,12 +227,10 @@ int drm_tegra_bo_free(struct drm_tegra_bo *bo);
 int __drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr);
 
 void drm_tegra_bo_cache_init(struct drm_tegra_bo_cache *cache, bool coarse);
-void drm_tegra_bo_cache_cleanup(struct drm_tegra_bo_cache *cache, time_t time);
-struct drm_tegra_bo * drm_tegra_bo_cache_alloc(
-		struct drm_tegra_bo_cache *cache,
-		uint32_t *size, uint32_t flags);
-int drm_tegra_bo_cache_free(struct drm_tegra_bo_cache *cache,
-			    struct drm_tegra_bo *bo);
+void drm_tegra_bo_cache_cleanup(struct drm_tegra *drm, time_t time);
+struct drm_tegra_bo * drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
+					       uint32_t *size, uint32_t flags);
+int drm_tegra_bo_cache_free(struct drm_tegra_bo *bo);
 void drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo);
 void *drm_tegra_bo_cache_map(struct drm_tegra_bo *bo);
 
