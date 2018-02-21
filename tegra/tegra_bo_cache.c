@@ -83,8 +83,10 @@ drm_tegra_bo_cache_init(struct drm_tegra_bo_cache *cache, bool course)
 
 /* Frees older cached buffers.  Called under table_lock */
 drm_private void
-drm_tegra_bo_cache_cleanup(struct drm_tegra_bo_cache *cache, time_t time)
+drm_tegra_bo_cache_cleanup(struct drm_tegra *drm,
+			   time_t time)
 {
+	struct drm_tegra_bo_cache *cache = &drm->bo_cache;
 	int i;
 
 	if (cache->time == time)
@@ -105,15 +107,19 @@ drm_tegra_bo_cache_cleanup(struct drm_tegra_bo_cache *cache, time_t time)
 			VG_BO_OBTAIN(bo);
 			DRMLISTDEL(&bo->bo_list);
 			drm_tegra_bo_free(bo);
+
+			if (drm->debug_bo)
+				drm->debug_bos_cached--;
 		}
 	}
 
 	cache->time = time;
 }
 
-static struct drm_tegra_bo_bucket * get_bucket(struct drm_tegra_bo_cache *cache,
+static struct drm_tegra_bo_bucket * get_bucket(struct drm_tegra *drm,
 					       uint32_t size)
 {
+	struct drm_tegra_bo_cache *cache = &drm->bo_cache;
 	int i;
 
 	/* hmm, this is what intel does, but I suppose we could calculate our
@@ -125,6 +131,8 @@ static struct drm_tegra_bo_bucket * get_bucket(struct drm_tegra_bo_cache *cache,
 			return bucket;
 		}
 	}
+
+	VDBG_DRM(drm, "failed size %u bytes\n",  size);
 
 	return NULL;
 }
@@ -199,14 +207,14 @@ static void reset_bo(struct drm_tegra_bo *bo, uint32_t flags)
 
 /* NOTE: size is potentially rounded up to bucket size: */
 drm_private struct drm_tegra_bo *
-drm_tegra_bo_cache_alloc(struct drm_tegra_bo_cache *cache,
+drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
 			 uint32_t *size, uint32_t flags)
 {
 	struct drm_tegra_bo *bo = NULL;
 	struct drm_tegra_bo_bucket *bucket;
 
 	*size = align(*size, 4096);
-	bucket = get_bucket(cache, *size);
+	bucket = get_bucket(drm, *size);
 
 	/* see if we can be green and recycle: */
 	if (bucket) {
@@ -222,21 +230,29 @@ drm_tegra_bo_cache_alloc(struct drm_tegra_bo_cache *cache,
 }
 
 drm_private int
-drm_tegra_bo_cache_free(struct drm_tegra_bo_cache *cache,
-			struct drm_tegra_bo *bo)
+drm_tegra_bo_cache_free(struct drm_tegra_bo *bo)
 {
-	struct drm_tegra_bo_bucket *bucket = get_bucket(cache, bo->size);
+	struct drm_tegra *drm = bo->drm;
+	struct drm_tegra_bo_bucket *bucket;
 
 	/* see if we can be green and recycle: */
+	bucket = get_bucket(drm, bo->size);
 	if (bucket) {
 		struct timespec time;
+
+		DBG_BO(bo, "BO added to cache\n");
 
 		clock_gettime(CLOCK_MONOTONIC, &time);
 
 		bo->free_time = time.tv_sec;
 		VG_BO_RELEASE(bo);
+		drm_tegra_bo_cache_cleanup(drm, time.tv_sec);
 		DRMLISTADDTAIL(&bo->bo_list, &bucket->list);
-		drm_tegra_bo_cache_cleanup(cache, time.tv_sec);
+
+		if (drm->debug_bo) {
+			drm->debug_bos_cached++;
+			DBG_BO_STATS(drm);
+		}
 
 		return 0;
 	}
@@ -245,7 +261,8 @@ drm_tegra_bo_cache_free(struct drm_tegra_bo_cache *cache,
 }
 
 static void
-drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra_bo_mmap_cache *cache,
+drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra *drm,
+				struct drm_tegra_bo_mmap_cache *cache,
 				time_t time)
 {
 	struct drm_tegra_bo *bo;
@@ -262,10 +279,17 @@ drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra_bo_mmap_cache *cache,
 			break;
 
 		if (!RUNNING_ON_VALGRIND)
-			munmap(bo->map_cached, bo->size);
+			munmap(bo->map_cached, bo->offset + bo->size);
 
 		DRMLISTDEL(&bo->mmap_list);
 		bo->map_cached = NULL;
+
+		if (drm->debug_bo) {
+			drm->debug_bos_mapped--;
+			drm->debug_bos_mappings_cached--;
+			drm->debug_bos_total_pages -= bo->debug_size / 4096;
+			drm->debug_bos_cached_pages -= bo->debug_size / 4096;
+		}
 	}
 
 	cache->time = time;
@@ -274,7 +298,8 @@ drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra_bo_mmap_cache *cache,
 drm_private void
 drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo)
 {
-	struct drm_tegra_bo_mmap_cache *cache = &bo->drm->mmap_cache;
+	struct drm_tegra *drm = bo->drm;
+	struct drm_tegra_bo_mmap_cache *cache = &drm->mmap_cache;
 	struct timespec time;
 
 	clock_gettime(CLOCK_MONOTONIC, &time);
@@ -282,18 +307,32 @@ drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo)
 	bo->unmap_time = time.tv_sec;
 	bo->map_cached = bo->map;
 
-	drm_tegra_bo_mmap_cache_cleanup(cache, time.tv_sec);
+	drm_tegra_bo_mmap_cache_cleanup(drm, cache, time.tv_sec);
 	DRMLISTADDTAIL(&bo->mmap_list, &cache->list);
+
+	if (drm->debug_bo) {
+		drm->debug_bos_mappings_cached++;
+		drm->debug_bos_cached_pages += bo->debug_size / 4096;
+	}
+
+	DBG_BO(bo, "mapping added to cache\n");
+	DBG_BO_STATS(drm);
 }
 
 drm_private void *
 drm_tegra_bo_cache_map(struct drm_tegra_bo *bo)
 {
+	struct drm_tegra *drm = bo->drm;
 	void *map_cached = bo->map_cached;
 
 	if (map_cached) {
 		DRMLISTDEL(&bo->mmap_list);
 		bo->map_cached = NULL;
+
+		if (drm->debug_bo) {
+			drm->debug_bos_mappings_cached--;
+			drm->debug_bos_cached_pages -= bo->debug_size / 4096;
+		}
 	}
 
 	return map_cached;
