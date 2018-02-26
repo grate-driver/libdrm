@@ -53,6 +53,134 @@ static struct drm_tegra_bo * lookup_bo(void *table, uint32_t key)
 	return bo;
 }
 
+static void drm_tegra_bo_setup_guards(struct drm_tegra_bo *bo)
+{
+	struct drm_tegra *drm = bo->drm;
+	struct drm_tegra_gem_mmap args;
+	uint64_t guard = 0x5351317315731757;
+	uint8_t *map;
+	size_t size;
+	unsigned i;
+	int err;
+
+	if (!drm->debug_bo_front_guard && !drm->debug_bo_back_guard)
+		return;
+
+	size = bo->size;
+
+	if (drm->debug_bo_back_guard)
+		size += 4096;
+
+	memset(&args, 0, sizeof(args));
+	args.handle = bo->handle;
+
+	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_MMAP,
+				  &args, sizeof(args));
+	if (err < 0) {
+		VDBG_BO(bo, "failed get mapping offset err %d (%s)\n",
+			err, strerror(-err));
+		abort();
+	}
+
+	map = mmap(0, bo->offset + size, PROT_READ | PROT_WRITE, MAP_SHARED,
+		   drm->fd, args.offset);
+	if (map == MAP_FAILED) {
+		VDBG_BO(bo, "failed to map guard 0x%llX err %d (%s)\n",
+			args.offset, -errno, strerror(errno));
+		abort();
+	}
+
+	if (drm->debug_bo_front_guard)
+		bo->guard_front = (uint64_t *)map;
+
+	if (drm->debug_bo_back_guard)
+		bo->guard_back = (uint64_t *)(map + bo->offset + bo->size);
+
+	VDBG_BO(bo, "front %p back %p\n", bo->guard_front, bo->guard_back);
+
+	/* we only interested in guards mapping, hence unmap the actual BO */
+	if (bo->size >= 4096)
+		munmap(map + bo->offset, align(bo->size - 4095, 4096));
+
+	if (bo->handle & 1)
+		guard = ~guard;
+
+	if (drm->debug_bo_front_guard)
+		for (i = 0; i < 512; i++)
+			bo->guard_front[i] = guard;
+
+	if (drm->debug_bo_back_guard)
+		for (i = 0; i < 512; i++)
+			bo->guard_back[i] = guard;
+}
+
+static void drm_tegra_bo_check_guards(struct drm_tegra_bo *bo)
+{
+	struct drm_tegra *drm = bo->drm;
+	uint64_t guard_check = 0x5351317315731757;
+	uint64_t guard;
+	unsigned i;
+
+	if (!drm->debug_bo_front_guard && !drm->debug_bo_back_guard)
+		return;
+
+	VDBG_BO(bo, "front %p back %p\n", bo->guard_front, bo->guard_back);
+
+	if (bo->handle & 1)
+		guard_check = ~guard_check;
+
+	if (drm->debug_bo_front_guard) {
+		for (i = 0; i < 512; i++) {
+			guard = bo->guard_front[i];
+
+			if (guard != guard_check) {
+				VDBG_BO(bo, "front guard is corrupted: entry %u is 0x%16llX, should be 0x%16llX\n",
+					i, guard, guard_check);
+				abort();
+			}
+		}
+	}
+
+	if (drm->debug_bo_back_guard) {
+		for (i = 0; i < 512; i++) {
+			guard = bo->guard_back[i];
+
+			if (guard != guard_check) {
+				VDBG_BO(bo, "back guard is corrupted: entry %u is 0x%16llX, should be 0x%16llX\n",
+					i, guard, guard_check);
+				abort();
+			}
+		}
+	}
+}
+
+static void drm_tegra_bo_unmap_guards(struct drm_tegra_bo *bo)
+{
+	unsigned long unaligned = (unsigned long)bo->guard_back;
+	unsigned long aligned = align(unaligned - 4095, 4096);
+	void *guard_back = (void *)aligned;
+	unsigned guard_back_size = 4096;
+	struct drm_tegra *drm = bo->drm;
+
+	if (!drm->debug_bo_front_guard && !drm->debug_bo_back_guard)
+		return;
+
+	VDBG_BO(bo, "front %p back %p (%u)\n",
+		bo->guard_front, guard_back, guard_back_size);
+
+	if (bo->size & 4095)
+		guard_back_size *= 2;
+
+	if (drm->debug_bo_front_guard)
+		munmap(bo->guard_front, 4096);
+
+	if (drm->debug_bo_back_guard)
+		munmap(guard_back, guard_back_size);
+
+	bo->guard_front = NULL;
+	bo->guard_back = NULL;
+}
+
 drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 {
 	struct drm_tegra *drm = bo->drm;
@@ -65,6 +193,8 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 		drm->debug_bos_allocated--;
 		drm->debug_bos_total_size -= bo->debug_size;
 	}
+
+	drm_tegra_bo_unmap_guards(bo);
 
 	if (bo->map) {
 		if (RUNNING_ON_VALGRIND)
@@ -139,6 +269,12 @@ static int drm_tegra_wrap(struct drm_tegra **drmp, int fd, bool close)
 	str = getenv("LIBDRM_TEGRA_DEBUG_BO");
 	drm->debug_bo = (str && strcmp(str, "1") == 0);
 
+	str = getenv("LIBDRM_TEGRA_DEBUG_BO_BACK_GUARD");
+	drm->debug_bo_back_guard = (str && strcmp(str, "1") == 0);
+
+	str = getenv("LIBDRM_TEGRA_DEBUG_BO_FRONT_GUARD");
+	drm->debug_bo_front_guard = (str && strcmp(str, "1") == 0);
+
 	*drmp = drm;
 
 	return 0;
@@ -211,6 +347,14 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 	args.flags = flags;
 	args.size = size;
 
+	if (drm->debug_bo_front_guard) {
+		bo->offset += 4096;
+		args.size += 4096;
+	}
+
+	if (drm->debug_bo_back_guard)
+		args.size += 4096;
+
 	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_CREATE, &args,
 				  sizeof(args));
 	if (err < 0) {
@@ -231,6 +375,7 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 		drm->debug_bos_allocated++;
 	}
 
+	drm_tegra_bo_setup_guards(bo);
 	DBG_BO_STATS(drm);
 
 	pthread_mutex_lock(&table_lock);
@@ -309,6 +454,8 @@ drm_public int drm_tegra_bo_unref(struct drm_tegra_bo *bo)
 
 	if (!atomic_dec_and_test(&bo->ref))
 		return 0;
+
+	drm_tegra_bo_check_guards(bo);
 
 	pthread_mutex_lock(&table_lock);
 
