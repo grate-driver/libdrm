@@ -127,6 +127,8 @@ struct drm_tegra {
 	int fd;
 
 	bool debug_bo;
+	bool debug_bo_back_guard;
+	bool debug_bo_front_guard;
 	int32_t debug_bos_allocated;
 	int32_t debug_bos_total_size;
 	int32_t debug_bos_cached;
@@ -168,6 +170,9 @@ struct drm_tegra_bo {
 	bool custom_flags;
 
 	uint32_t debug_size;
+
+	uint64_t *guard_front;
+	uint64_t *guard_back;
 };
 
 struct drm_tegra_channel {
