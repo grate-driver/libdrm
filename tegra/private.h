@@ -114,6 +114,8 @@ struct drm_tegra_bo {
 	time_t unmap_time;		/* time when added to cache-list */
 	void *map_cached;		/* holds cached mmap pointer */
 
+	bool custom_tiling;
+	bool custom_flags;
 };
 
 struct drm_tegra_channel {

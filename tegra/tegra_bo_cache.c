@@ -169,14 +169,18 @@ static void reset_bo(struct drm_tegra_bo *bo, uint32_t flags)
 
 	VG_BO_OBTAIN(bo);
 
-	/* XXX: Error handling? */
-	drm_tegra_bo_set_flags(bo, flags);
+	if (bo->custom_flags) {
+		/* XXX: Error handling? */
+		drm_tegra_bo_set_flags(bo, flags);
+	}
 
-	/* reset tiling mode */
-	memset(&tiling, 0, sizeof(tiling));
+	if (bo->custom_tiling) {
+		/* reset tiling mode */
+		memset(&tiling, 0, sizeof(tiling));
 
-	/* XXX: Error handling? */
-	drm_tegra_bo_set_tiling(bo, &tiling);
+		/* XXX: Error handling? */
+		drm_tegra_bo_set_tiling(bo, &tiling);
+	}
 
 	/* reset reference counters */
 	atomic_set(&bo->ref, 1);
