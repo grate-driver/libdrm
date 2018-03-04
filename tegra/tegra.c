@@ -419,6 +419,8 @@ int drm_tegra_bo_set_flags(struct drm_tegra_bo *bo, uint32_t flags)
 	if (err < 0)
 		return err;
 
+	bo->custom_flags = (flags != 0);
+
 	return 0;
 }
 
@@ -451,6 +453,7 @@ int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 			    const struct drm_tegra_bo_tiling *tiling)
 {
 	struct drm_tegra_gem_set_tiling args;
+	int err;
 
 	if (!bo || !tiling)
 		return -EINVAL;
@@ -460,8 +463,14 @@ int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 	args.mode = tiling->mode;
 	args.value = tiling->value;
 
-	return drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_SET_TILING,
-				   &args, sizeof(args));
+	err = drmCommandWriteRead(bo->drm->fd, DRM_TEGRA_GEM_SET_TILING,
+				  &args, sizeof(args));
+	if (err < 0)
+		return err;
+
+	bo->custom_tiling = (tiling->mode || tiling->value);
+
+	return 0;
 }
 
 int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
