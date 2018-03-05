@@ -55,6 +55,7 @@ static struct drm_tegra_bo * lookup_bo(void *table, uint32_t key)
 
 static void drm_tegra_bo_setup_guards(struct drm_tegra_bo *bo)
 {
+#ifndef NDEBUG
 	struct drm_tegra *drm = bo->drm;
 	struct drm_tegra_gem_mmap args;
 	uint64_t guard = 0x5351317315731757;
@@ -112,10 +113,12 @@ static void drm_tegra_bo_setup_guards(struct drm_tegra_bo *bo)
 	if (drm->debug_bo_back_guard)
 		for (i = 0; i < 512; i++)
 			bo->guard_back[i] = guard;
+#endif
 }
 
 static void drm_tegra_bo_check_guards(struct drm_tegra_bo *bo)
 {
+#ifndef NDEBUG
 	struct drm_tegra *drm = bo->drm;
 	uint64_t guard_check = 0x5351317315731757;
 	uint64_t guard;
@@ -152,10 +155,12 @@ static void drm_tegra_bo_check_guards(struct drm_tegra_bo *bo)
 			}
 		}
 	}
+#endif
 }
 
 static void drm_tegra_bo_unmap_guards(struct drm_tegra_bo *bo)
 {
+#ifndef NDEBUG
 	unsigned long unaligned = (unsigned long)bo->guard_back;
 	unsigned long aligned = align(unaligned - 4095, 4096);
 	void *guard_back = (void *)aligned;
@@ -179,6 +184,7 @@ static void drm_tegra_bo_unmap_guards(struct drm_tegra_bo *bo)
 
 	bo->guard_front = NULL;
 	bo->guard_back = NULL;
+#endif
 }
 
 drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
@@ -189,11 +195,12 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 
 	DBG_BO(bo, "\n");
 
+#ifndef NDEBUG
 	if (drm->debug_bo) {
 		drm->debug_bos_allocated--;
 		drm->debug_bos_total_size -= bo->debug_size;
 	}
-
+#endif
 	drm_tegra_bo_unmap_guards(bo);
 
 	if (bo->map) {
@@ -207,20 +214,22 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 			munmap(bo->map_cached, bo->offset + bo->size);
 
 		DRMLISTDEL(&bo->mmap_list);
-
+#ifndef NDEBUG
 		if (drm->debug_bo) {
 			drm->debug_bos_mappings_cached--;
 			drm->debug_bos_cached_pages -= bo->debug_size / 4096;
 		}
+#endif
 	} else {
 		goto vg_free;
 	}
 
+#ifndef NDEBUG
 	if (drm->debug_bo) {
 		drm->debug_bos_mapped--;
 		drm->debug_bos_total_pages -= bo->debug_size / 4096;
 	}
-
+#endif
 vg_free:
 	VG_BO_FREE(bo);
 
@@ -243,10 +252,25 @@ vg_free:
 	return err;
 }
 
+static void drm_tegra_setup_debug(struct drm_tegra *drm)
+{
+#ifndef NDEBUG
+	char *str;
+
+	str = getenv("LIBDRM_TEGRA_DEBUG_BO");
+	drm->debug_bo = (str && strcmp(str, "1") == 0);
+
+	str = getenv("LIBDRM_TEGRA_DEBUG_BO_BACK_GUARD");
+	drm->debug_bo_back_guard = (str && strcmp(str, "1") == 0);
+
+	str = getenv("LIBDRM_TEGRA_DEBUG_BO_FRONT_GUARD");
+	drm->debug_bo_front_guard = (str && strcmp(str, "1") == 0);
+#endif
+}
+
 static int drm_tegra_wrap(struct drm_tegra **drmp, int fd, bool close)
 {
 	struct drm_tegra *drm;
-	char *str;
 
 	if (fd < 0 || !drmp)
 		return -EINVAL;
@@ -266,14 +290,7 @@ static int drm_tegra_wrap(struct drm_tegra **drmp, int fd, bool close)
 	if (!drm->handle_table || !drm->name_table)
 		return -ENOMEM;
 
-	str = getenv("LIBDRM_TEGRA_DEBUG_BO");
-	drm->debug_bo = (str && strcmp(str, "1") == 0);
-
-	str = getenv("LIBDRM_TEGRA_DEBUG_BO_BACK_GUARD");
-	drm->debug_bo_back_guard = (str && strcmp(str, "1") == 0);
-
-	str = getenv("LIBDRM_TEGRA_DEBUG_BO_FRONT_GUARD");
-	drm->debug_bo_front_guard = (str && strcmp(str, "1") == 0);
+	drm_tegra_setup_debug(drm);
 
 	*drmp = drm;
 
@@ -347,6 +364,7 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 	args.flags = flags;
 	args.size = size;
 
+#ifndef NDEBUG
 	if (drm->debug_bo_front_guard) {
 		bo->offset += 4096;
 		args.size += 4096;
@@ -354,7 +372,7 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 
 	if (drm->debug_bo_back_guard)
 		args.size += 4096;
-
+#endif
 	err = drmCommandWriteRead(drm->fd, DRM_TEGRA_GEM_CREATE, &args,
 				  sizeof(args));
 	if (err < 0) {
@@ -369,12 +387,13 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 	DBG_BO(bo, "success new\n");
 	VG_BO_ALLOC(bo);
 
+#ifndef NDEBUG
 	if (drm->debug_bo) {
 		bo->debug_size = align(bo->size, 4096);
 		drm->debug_bos_total_size += bo->debug_size;
 		drm->debug_bos_allocated++;
 	}
-
+#endif
 	drm_tegra_bo_setup_guards(bo);
 	DBG_BO_STATS(drm);
 
@@ -521,11 +540,12 @@ drm_private int __drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 out:
 	*ptr = map;
 
+#ifndef NDEBUG
 	if (drm->debug_bo && ptr == &bo->map) {
 		drm->debug_bos_mapped++;
 		drm->debug_bos_total_pages += bo->debug_size / 4096;
 	}
-
+#endif
 	DBG_BO(bo, "success\n");
 	DBG_BO_STATS(drm);
 

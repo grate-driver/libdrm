@@ -47,6 +47,7 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+#ifndef NDEBUG
 #define VDBG_DRM(DRM, FMT, ...) do {					\
 	if (DRM->debug_bo)						\
 		fprintf(stderr, "%s: %d: " FMT,				\
@@ -85,6 +86,12 @@
 } while (0)
 
 #define DBG_BO(BO, FMT) VDBG_BO(BO, FMT "%s", "")
+#else
+#define VDBG_DRM(DRM, FMT, ...)	do {} while (0)
+#define DBG_BO_STATS(DRM)	do {} while (0)
+#define VDBG_BO(BO, FMT, ...)	do {} while (0)
+#define DBG_BO(BO, FMT)		do {} while (0)
+#endif
 
 enum host1x_class {
 	HOST1X_CLASS_HOST1X = 0x01,
@@ -126,6 +133,7 @@ struct drm_tegra {
 	bool close;
 	int fd;
 
+#ifndef NDEBUG
 	bool debug_bo;
 	bool debug_bo_back_guard;
 	bool debug_bo_front_guard;
@@ -136,6 +144,7 @@ struct drm_tegra {
 	int32_t debug_bos_total_pages;
 	int32_t debug_bos_cached_pages;
 	int32_t debug_bos_mappings_cached;
+#endif
 };
 
 struct drm_tegra_bo {
@@ -169,10 +178,12 @@ struct drm_tegra_bo {
 	bool custom_tiling;
 	bool custom_flags;
 
+#ifndef NDEBUG
 	uint32_t debug_size;
 
 	uint64_t *guard_front;
 	uint64_t *guard_back;
+#endif
 };
 
 struct drm_tegra_channel {

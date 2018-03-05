@@ -107,9 +107,10 @@ drm_tegra_bo_cache_cleanup(struct drm_tegra *drm,
 			VG_BO_OBTAIN(bo);
 			DRMLISTDEL(&bo->bo_list);
 			drm_tegra_bo_free(bo);
-
+#ifndef NDEBUG
 			if (drm->debug_bo)
 				drm->debug_bos_cached--;
+#endif
 		}
 	}
 
@@ -248,12 +249,12 @@ drm_tegra_bo_cache_free(struct drm_tegra_bo *bo)
 		VG_BO_RELEASE(bo);
 		drm_tegra_bo_cache_cleanup(drm, time.tv_sec);
 		DRMLISTADDTAIL(&bo->bo_list, &bucket->list);
-
+#ifndef NDEBUG
 		if (drm->debug_bo) {
 			drm->debug_bos_cached++;
 			DBG_BO_STATS(drm);
 		}
-
+#endif
 		return 0;
 	}
 
@@ -283,13 +284,14 @@ drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra *drm,
 
 		DRMLISTDEL(&bo->mmap_list);
 		bo->map_cached = NULL;
-
+#ifndef NDEBUG
 		if (drm->debug_bo) {
 			drm->debug_bos_mapped--;
 			drm->debug_bos_mappings_cached--;
 			drm->debug_bos_total_pages -= bo->debug_size / 4096;
 			drm->debug_bos_cached_pages -= bo->debug_size / 4096;
 		}
+#endif
 	}
 
 	cache->time = time;
@@ -309,12 +311,12 @@ drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo)
 
 	drm_tegra_bo_mmap_cache_cleanup(drm, cache, time.tv_sec);
 	DRMLISTADDTAIL(&bo->mmap_list, &cache->list);
-
+#ifndef NDEBUG
 	if (drm->debug_bo) {
 		drm->debug_bos_mappings_cached++;
 		drm->debug_bos_cached_pages += bo->debug_size / 4096;
 	}
-
+#endif
 	DBG_BO(bo, "mapping added to cache\n");
 	DBG_BO_STATS(drm);
 }
@@ -322,17 +324,20 @@ drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo)
 drm_private void *
 drm_tegra_bo_cache_map(struct drm_tegra_bo *bo)
 {
+#ifndef NDEBUG
 	struct drm_tegra *drm = bo->drm;
+#endif
 	void *map_cached = bo->map_cached;
 
 	if (map_cached) {
 		DRMLISTDEL(&bo->mmap_list);
 		bo->map_cached = NULL;
-
+#ifndef NDEBUG
 		if (drm->debug_bo) {
 			drm->debug_bos_mappings_cached--;
 			drm->debug_bos_cached_pages -= bo->debug_size / 4096;
 		}
+#endif
 	}
 
 	return map_cached;
