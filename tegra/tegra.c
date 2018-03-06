@@ -512,7 +512,7 @@ drm_private int __drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 #ifdef HAVE_VALGRIND
 	if (RUNNING_ON_VALGRIND && bo->map_vg) {
 		map = bo->map_vg;
-		goto out;
+		goto map_cnt;
 	}
 #endif
 
@@ -537,9 +537,9 @@ drm_private int __drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 	}
 
 	map += bo->offset;
-out:
-	*ptr = map;
-
+#ifdef HAVE_VALGRIND
+map_cnt:
+#endif
 #ifndef NDEBUG
 	if (drm->debug_bo && ptr == &bo->map) {
 		drm->debug_bos_mapped++;
@@ -547,7 +547,11 @@ out:
 	}
 #endif
 	DBG_BO(bo, "success\n");
-	DBG_BO_STATS(drm);
+out:
+	if (ptr == &bo->map)
+		DBG_BO_STATS(drm);
+
+	*ptr = map;
 
 	return 0;
 }
