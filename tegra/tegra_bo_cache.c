@@ -223,6 +223,10 @@ drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
 		bo = find_in_bucket(bucket, flags);
 		if (bo) {
 			reset_bo(bo, flags);
+#ifndef NDEBUG
+			if (drm->debug_bo)
+				drm->debug_bos_cached--;
+#endif
 			return bo;
 		}
 	}
