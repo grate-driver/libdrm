@@ -7,10 +7,12 @@ libdrm_freedreno.so.1 libdrm-freedreno1 #MINVER#
  fd_bo_from_fbdev@Base 0
  fd_bo_from_handle@Base 0
  fd_bo_from_name@Base 0
+ fd_bo_get_iova@Base 0
  fd_bo_get_name@Base 0
  fd_bo_handle@Base 0
  fd_bo_map@Base 0
  fd_bo_new@Base 0
+ fd_bo_put_iova@Base 0
  fd_bo_ref@Base 0
  fd_bo_size@Base 0
  fd_device_del@Base 0
