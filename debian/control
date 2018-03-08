@@ -47,6 +47,7 @@ Description: Userspace interface to kernel DRM services -- development files
 Package: libdrm2
 Architecture: linux-any kfreebsd-any
 Depends:
+ libdrm-common (>= ${source:Version}),
  ${shlibs:Depends},
  ${misc:Depends},
 Multi-Arch: same
@@ -59,6 +60,21 @@ Description: Userspace interface to kernel DRM services -- runtime
  OpenGL drivers.
  .
  This package provides the runtime environment for libdrm.
+
+Package: libdrm-common
+Architecture: all
+Depends:
+ ${misc:Depends},
+Multi-Arch: foreign
+Pre-Depends: ${misc:Pre-Depends}
+Description: Userspace interface to kernel DRM services -- common files
+ This library implements the userspace interface to the kernel DRM
+ services.  DRM stands for "Direct Rendering Manager", which is the
+ kernelspace portion of the "Direct Rendering Infrastructure" (DRI).
+ The DRI is currently used on Linux to provide hardware-accelerated
+ OpenGL drivers.
+ .
+ This package provides common files for libdrm.
 
 Package: libdrm2-udeb
 Package-Type: udeb

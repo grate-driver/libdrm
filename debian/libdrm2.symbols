@@ -30,6 +30,8 @@ libdrm.so.2 libdrm2 #MINVER#
  drmCommandWriteRead@Base 2.3.1
  drmCreateContext@Base 2.3.1
  drmCreateDrawable@Base 2.3.1
+ drmCrtcGetSequence@Base 2.4.89
+ drmCrtcQueueSequence@Base 2.4.89
  drmCtlInstHandler@Base 2.3.1
  drmCtlUninstHandler@Base 2.3.1
  drmDMA@Base 2.3.1
@@ -99,6 +101,7 @@ libdrm.so.2 libdrm2 #MINVER#
  drmModeAtomicSetCursor@Base 2.4.62
  drmModeAttachMode@Base 2.4.3
  drmModeConnectorSetProperty@Base 2.4.3
+ drmModeCreateLease@Base 2.4.89
  drmModeCreatePropertyBlob@Base 2.4.62
  drmModeCrtcGetGamma@Base 2.4.3
  drmModeCrtcSetGamma@Base 2.4.3
@@ -121,16 +124,19 @@ libdrm.so.2 libdrm2 #MINVER#
  drmModeGetCrtc@Base 2.4.3
  drmModeGetEncoder@Base 2.4.3
  drmModeGetFB@Base 2.4.3
+ drmModeGetLease@Base 2.4.89
  drmModeGetPlane@Base 2.4.30
  drmModeGetPlaneResources@Base 2.4.30
  drmModeGetProperty@Base 2.4.3
  drmModeGetPropertyBlob@Base 2.4.3
  drmModeGetResources@Base 2.4.3
+ drmModeListLessees@Base 2.4.89
  drmModeMoveCursor@Base 2.4.3
  drmModeObjectGetProperties@Base 2.4.36
  drmModeObjectSetProperty@Base 2.4.36
  drmModePageFlip@Base 2.4.17
  drmModePageFlipTarget@Base 2.4.73
+ drmModeRevokeLease@Base 2.4.89
  drmModeRmFB@Base 2.4.3
  drmModeSetCrtc@Base 2.4.3
  drmModeSetCursor2@Base 2.4.46
@@ -168,6 +174,15 @@ libdrm.so.2 libdrm2 #MINVER#
  drmSetMaster@Base 2.4.3
  drmSetServerInfo@Base 2.3.1
  drmSwitchToContext@Base 2.3.1
+ drmSyncobjCreate@Base 2.4.82
+ drmSyncobjDestroy@Base 2.4.82
+ drmSyncobjExportSyncFile@Base 2.4.82
+ drmSyncobjFDToHandle@Base 2.4.82
+ drmSyncobjHandleToFD@Base 2.4.82
+ drmSyncobjImportSyncFile@Base 2.4.82
+ drmSyncobjReset@Base 2.4.89
+ drmSyncobjSignal@Base 2.4.89
+ drmSyncobjWait@Base 2.4.84
  drmUnlock@Base 2.3.1
  drmUnmap@Base 2.3.1
  drmUnmapBufs@Base 2.3.1

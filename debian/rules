@@ -103,7 +103,7 @@ override_dh_install:
 	dh_install --fail-missing
 
 override_dh_makeshlibs:
-	dh_makeshlibs -plibdrm2 -V'libdrm2 (>= 2.4.81)' --add-udeb=libdrm2-udeb -- -c4
+	dh_makeshlibs -plibdrm2 -V'libdrm2 (>= 2.4.89)' --add-udeb=libdrm2-udeb -- -c4
 ifeq ($(INTEL), yes)
 	dh_makeshlibs -plibdrm-intel1 -V'libdrm-intel1 (>= 2.4.75)' -- -c4
 endif
@@ -111,19 +111,19 @@ ifeq ($(NOUVEAU), yes)
 	dh_makeshlibs -plibdrm-nouveau2 -V'libdrm-nouveau2 (>= 2.4.66)' -- -c4
 endif
 	dh_makeshlibs -plibdrm-radeon1 -V'libdrm-radeon1 (>= 2.4.39)' -- -c4
-	dh_makeshlibs -plibdrm-amdgpu1 -V'libdrm-amdgpu1 (>= 2.4.81)' -- -c4
+	dh_makeshlibs -plibdrm-amdgpu1 -V'libdrm-amdgpu1 (>= 2.4.90)' -- -c4
 ifeq ($(ARM), yes)
 	dh_makeshlibs -plibdrm-omap1 -V'libdrm-omap1 (>= 2.4.38)' -- -c4
 	dh_makeshlibs -plibdrm-exynos1 -V'libdrm-exynos1 (>= 2.4.66)' -- -c4
 endif
 ifeq ($(ETNAVIV), yes)
-	dh_makeshlibs -plibdrm-etnaviv1 -V'libdrm-etnaviv1 (>= 2.4.80)' -- -c4
+	dh_makeshlibs -plibdrm-etnaviv1 -V'libdrm-etnaviv1 (>= 2.4.89)' -- -c4
 endif
 ifeq ($(TEGRA), yes)
 	dh_makeshlibs -plibdrm-tegra0 -V'libdrm-tegra0' -- -c4
 endif
 ifeq ($(FREEDRENO), yes)
-	dh_makeshlibs -plibdrm-freedreno1 -V'libdrm-freedreno1 (>= 2.4.74)' -- -c4
+	dh_makeshlibs -plibdrm-freedreno1 -V'libdrm-freedreno1 (>= 2.4.89)' -- -c4
 endif
 
 %:
