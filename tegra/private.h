@@ -25,6 +25,7 @@
 #ifndef __DRM_TEGRA_PRIVATE_H__
 #define __DRM_TEGRA_PRIVATE_H__ 1
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
