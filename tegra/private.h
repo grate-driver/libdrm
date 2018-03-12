@@ -257,7 +257,7 @@ void *drm_tegra_bo_cache_map(struct drm_tegra_bo *bo);
  * For tracking the backing memory (if valgrind enabled, we force a mmap
  * for the purposes of tracking)
  */
-static inline void VG_BO_ALLOC(struct drm_tegra_bo *bo)
+static void __attribute__((unused)) VG_BO_ALLOC(struct drm_tegra_bo *bo)
 {
 	if (RUNNING_ON_VALGRIND) {
 		__drm_tegra_bo_map(bo, &bo->map_vg);
@@ -266,7 +266,7 @@ static inline void VG_BO_ALLOC(struct drm_tegra_bo *bo)
 	}
 }
 
-static inline void VG_BO_FREE(struct drm_tegra_bo *bo)
+static void __attribute__((unused)) VG_BO_FREE(struct drm_tegra_bo *bo)
 {
 	if (RUNNING_ON_VALGRIND)
 		munmap(bo->map_vg, bo->size);
@@ -282,7 +282,7 @@ static inline void VG_BO_FREE(struct drm_tegra_bo *bo)
  * valgrind doesn't squawk about list traversal.
  *
  */
-static inline void VG_BO_RELEASE(struct drm_tegra_bo *bo)
+static void __attribute__((unused)) VG_BO_RELEASE(struct drm_tegra_bo *bo)
 {
 	if (RUNNING_ON_VALGRIND) {
 		/*
@@ -301,7 +301,7 @@ static inline void VG_BO_RELEASE(struct drm_tegra_bo *bo)
 		VALGRIND_MAKE_MEM_NOACCESS(bo, offsetof(typeof(*bo), bo_list));
 	}
 }
-static inline void VG_BO_OBTAIN(struct drm_tegra_bo *bo)
+static void __attribute__((unused)) VG_BO_OBTAIN(struct drm_tegra_bo *bo)
 {
 	if (RUNNING_ON_VALGRIND) {
 		/* restore BO memory accesses in valgrind */
@@ -317,12 +317,12 @@ static inline void VG_BO_OBTAIN(struct drm_tegra_bo *bo)
  * mapped region as freed on BO unmapping in order to catch invalid
  * memory accesses.
  */
-static inline void VG_BO_MMAP(struct drm_tegra_bo *bo)
+static void __attribute__((unused)) VG_BO_MMAP(struct drm_tegra_bo *bo)
 {
 	if (RUNNING_ON_VALGRIND)
 		VALGRIND_MALLOCLIKE_BLOCK(bo->map_vg, bo->size, 0, 1);
 }
-static inline void VG_BO_UNMMAP(struct drm_tegra_bo *bo)
+static void __attribute__((unused)) VG_BO_UNMMAP(struct drm_tegra_bo *bo)
 {
 	if (RUNNING_ON_VALGRIND)
 		VALGRIND_FREELIKE_BLOCK(bo->map_vg, 0);
