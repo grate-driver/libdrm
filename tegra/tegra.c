@@ -137,7 +137,7 @@ static void drm_tegra_bo_check_guards(struct drm_tegra_bo *bo)
 			guard = bo->guard_front[i];
 
 			if (guard != guard_check) {
-				VDBG_BO(bo, "front guard is corrupted: entry %u is 0x%16llX, should be 0x%16llX\n",
+				VDBG_BO(bo, "front guard is corrupted: entry %u is 0x%16" PRIX64 ", should be 0x%16" PRIX64 "\n",
 					i, guard, guard_check);
 				abort();
 			}
@@ -149,7 +149,7 @@ static void drm_tegra_bo_check_guards(struct drm_tegra_bo *bo)
 			guard = bo->guard_back[i];
 
 			if (guard != guard_check) {
-				VDBG_BO(bo, "back guard is corrupted: entry %u is 0x%16llX, should be 0x%16llX\n",
+				VDBG_BO(bo, "back guard is corrupted: entry %u is 0x%16" PRIX64 ", should be 0x%16" PRIX64 "\n",
 					i, guard, guard_check);
 				abort();
 			}
