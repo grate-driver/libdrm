@@ -18,9 +18,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+files_tegra = files(
+  'channel.c',
+  'fence.c',
+  'job.c',
+  'private.h',
+  'pushbuf.c',
+  'tegra_bo_cache.c',
+  'tegra.c',
+)
+
 libdrm_tegra = shared_library(
   'drm_tegra',
-  [files('tegra.c'), config_file],
+  [files_tegra, config_file],
   include_directories : [inc_root, inc_drm],
   link_with : libdrm,
   dependencies : [dep_pthread_stubs, dep_atomic_ops, dep_valgrind],
