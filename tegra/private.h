@@ -251,7 +251,7 @@ int drm_tegra_bo_cache_free(struct drm_tegra_bo *bo);
 void drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo);
 void *drm_tegra_bo_cache_map(struct drm_tegra_bo *bo);
 
-#ifdef HAVE_VALGRIND
+#if HAVE_VALGRIND
 #  include <memcheck.h>
 
 /*
