@@ -513,7 +513,7 @@ drm_private int __drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 		goto out;
 	}
 
-#ifdef HAVE_VALGRIND
+#if HAVE_VALGRIND
 	if (RUNNING_ON_VALGRIND && bo->map_vg) {
 		map = bo->map_vg;
 		goto map_cnt;
@@ -541,7 +541,7 @@ drm_private int __drm_tegra_bo_map(struct drm_tegra_bo *bo, void **ptr)
 	}
 
 	map += bo->offset;
-#ifdef HAVE_VALGRIND
+#if HAVE_VALGRIND
 map_cnt:
 #endif
 #ifndef NDEBUG
