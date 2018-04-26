@@ -160,7 +160,7 @@ struct drm_tegra_bo {
 	uint32_t mmap_ref;
 	void *map;
 
-#ifdef HAVE_VALGRIND
+#if HAVE_VALGRIND
 	void *map_vg;
 #endif
 
