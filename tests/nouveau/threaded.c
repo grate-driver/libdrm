@@ -36,7 +36,11 @@ static int failed;
 
 static int import_fd;
 
+#ifdef __GLIBC__
 int ioctl(int fd, unsigned long request, ...)
+#else
+int ioctl(int fd, int request, ...)
+#endif
 {
 	va_list va;
 	int ret;
