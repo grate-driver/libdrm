@@ -156,7 +156,6 @@ static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 	 * NOTE that intel takes ALLOC_FOR_RENDER bo's from the list tail
 	 * (MRU, since likely to be in GPU cache), rather than head (LRU)..
 	 */
-	pthread_mutex_lock(&table_lock);
 	if (!DRMLISTEMPTY(&bucket->list)) {
 		bo = DRMLISTENTRY(struct drm_tegra_bo, bucket->list.next,
 				  bo_list);
@@ -167,7 +166,6 @@ static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 			bo = NULL;
 		}
 	}
-	pthread_mutex_unlock(&table_lock);
 
 	return bo;
 }
@@ -219,6 +217,8 @@ drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
 
 	/* see if we can be green and recycle: */
 	if (bucket) {
+		pthread_mutex_lock(&table_lock);
+
 		*size = bucket->size;
 		bo = find_in_bucket(bucket, flags);
 		if (bo) {
@@ -227,11 +227,12 @@ drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
 			if (drm->debug_bo)
 				drm->debug_bos_cached--;
 #endif
-			return bo;
 		}
+
+		pthread_mutex_unlock(&table_lock);
 	}
 
-	return NULL;
+	return bo;
 }
 
 drm_private int
