@@ -52,9 +52,10 @@ intel_atomics = false
 lib_atomics = false
 
 dep_atomic_ops = dependency('atomic_ops', required : false)
-if cc.compiles('''
+if cc.links('''
     int atomic_add(int *i) { return __sync_add_and_fetch (i, 1); }
     int atomic_cmpxchg(int *i, int j, int k) { return __sync_val_compare_and_swap (i, j, k); }
+    int main() { }
     ''',
     name : 'Intel Atomics')
   intel_atomics = true
