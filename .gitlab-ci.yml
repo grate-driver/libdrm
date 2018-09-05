@@ -91,6 +91,11 @@ meson-x86_64:
   needs:
     - debian
 
+meson-i386:
+  extends: meson-x86_64
+  variables:
+    CROSS: i386
+
 meson-arch-daily:
   rules:
     - if: '$SCHEDULE == "arch-daily"'
