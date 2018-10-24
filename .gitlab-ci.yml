@@ -96,6 +96,16 @@ meson-i386:
   variables:
     CROSS: i386
 
+meson-aarch64:
+  extends: meson-x86_64
+  variables:
+    CROSS: arm64
+
+meson-armhf:
+  extends: meson-x86_64
+  variables:
+    CROSS: armhf
+
 meson-arch-daily:
   rules:
     - if: '$SCHEDULE == "arch-daily"'
