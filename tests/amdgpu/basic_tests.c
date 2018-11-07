@@ -30,7 +30,7 @@
 #endif
 #include <sys/stat.h>
 #include <fcntl.h>
-#ifdef HAVE_ALLOCA_H
+#if HAVE_ALLOCA_H
 # include <alloca.h>
 #endif
 #include <sys/wait.h>

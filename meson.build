@@ -187,7 +187,7 @@ dep_m = cc.find_library('m', required : false)
 # FreeBSD requires sys/types.h for sys/sysctl.h, add it as part of the
 # includes when checking for headers.
 foreach header : ['sys/sysctl.h', 'sys/select.h', 'alloca.h']
-  config.set('HAVE_' + header.underscorify().to_upper(),
+  config.set10('HAVE_' + header.underscorify().to_upper(),
     cc.compiles('#include <sys/types.h>\n#include <@0@>'.format(header), name : '@0@ works'.format(header)))
 endforeach
 if (cc.has_header_symbol('sys/sysmacros.h', 'major') and

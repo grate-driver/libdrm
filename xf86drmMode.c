@@ -42,7 +42,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
-#ifdef HAVE_SYS_SYSCTL_H
+#if HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
 #endif
 #include <stdio.h>

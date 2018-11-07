@@ -51,7 +51,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <sys/time.h>
-#ifdef HAVE_SYS_SELECT_H
+#if HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
 #include <math.h>
