@@ -5,6 +5,7 @@ libdrm_amdgpu.so.1 libdrm-amdgpu1 #MINVER#
  amdgpu_bo_export@Base 2.4.63
  amdgpu_bo_free@Base 2.4.63
  amdgpu_bo_import@Base 2.4.63
+ amdgpu_bo_inc_ref@Base 0
  amdgpu_bo_list_create@Base 2.4.63
  amdgpu_bo_list_destroy@Base 2.4.63
  amdgpu_bo_list_update@Base 2.4.63
@@ -41,6 +42,7 @@ libdrm_amdgpu.so.1 libdrm-amdgpu1 #MINVER#
  amdgpu_cs_wait_semaphore@Base 2.4.67
  amdgpu_device_deinitialize@Base 2.4.63
  amdgpu_device_initialize@Base 2.4.63
+ amdgpu_find_bo_by_cpu_mapping@Base 0
  amdgpu_get_marketing_name@Base 2.4.73
  amdgpu_query_buffer_size_alignment@Base 2.4.63
  amdgpu_query_crtc_from_id@Base 2.4.63
