@@ -40,9 +40,12 @@ drm_private pthread_mutex_t table_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct drm_tegra_bo * lookup_bo(void *table, uint32_t key)
 {
 	struct drm_tegra_bo *bo;
+	void *value;
 
-	if (drmHashLookup(table, key, (void **)&bo))
+	if (drmHashLookup(table, key, &value))
 		return NULL;
+
+	bo = value;
 
 	/* found, increment reference count */
 	atomic_inc(&bo->ref);
