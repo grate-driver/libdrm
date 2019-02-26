@@ -34,8 +34,6 @@
 
 #include "private.h"
 
-drm_private extern pthread_mutex_t table_lock;
-
 static void
 add_bucket(struct drm_tegra_bo_cache *cache, int size)
 {
@@ -217,8 +215,6 @@ drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
 
 	/* see if we can be green and recycle: */
 	if (bucket) {
-		pthread_mutex_lock(&table_lock);
-
 		*size = bucket->size;
 		bo = find_in_bucket(bucket, flags);
 		if (bo) {
@@ -228,8 +224,6 @@ drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
 				drm->debug_bos_cached--;
 #endif
 		}
-
-		pthread_mutex_unlock(&table_lock);
 	}
 
 	return bo;
