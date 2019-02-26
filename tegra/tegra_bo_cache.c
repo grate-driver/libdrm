@@ -46,6 +46,35 @@ add_bucket(struct drm_tegra_bo_cache *cache, int size)
 	cache->num_buckets++;
 }
 
+static bool
+bucket_free_up(struct drm_tegra *drm, struct drm_tegra_bo_bucket *bucket,
+	       bool mem_map)
+{
+	if (mem_map && bucket->num_mmap_entries )
+		VDBG_DRM(drm, "mem_map %d bucket->size %u bucket->num_mmap_entries %u\n",
+			 mem_map, bucket->size, bucket->num_mmap_entries);
+	else if (bucket->num_entries)
+		VDBG_DRM(drm, "mem_map %d bucket->size %u bucket->num_entries %u\n",
+			 mem_map, bucket->size, bucket->num_entries);
+
+	/*
+	 * Always keep a bunch of small BO's in cache because
+	 * they usually reallocated frequently. This reduces
+	 * stalls on starting commands stream generation.
+	 */
+	if (mem_map) {
+		if (bucket->size > 16384 ||
+		    bucket->size * bucket->num_mmap_entries > 65536)
+			return true;
+	} else {
+		if (bucket->size > 16384 ||
+		    bucket->size * bucket->num_entries > 65536)
+			return true;
+	}
+
+	return false;
+}
+
 /**
  * @coarse: if true, only power-of-two bucket sizes, otherwise
  *    fill in for a bit smoother size curve..
@@ -94,9 +123,12 @@ drm_tegra_bo_cache_cleanup(struct drm_tegra *drm,
 		struct drm_tegra_bo_bucket *bucket = &cache->cache_bucket[i];
 		struct drm_tegra_bo *bo;
 
+		if (time && !bucket_free_up(drm, bucket, false))
+			continue;
+
 		while (!DRMLISTEMPTY(&bucket->list)) {
 			bo = DRMLISTENTRY(struct drm_tegra_bo,
-					  bucket->list.next, bo_list);
+					bucket->list.next, bo_list);
 
 			/* keep things in cache for at least 1 second: */
 			if (time && ((time - bo->free_time) <= 1))
@@ -109,14 +141,15 @@ drm_tegra_bo_cache_cleanup(struct drm_tegra *drm,
 			if (drm->debug_bo)
 				drm->debug_bos_cached--;
 #endif
+			bucket->num_entries--;
 		}
 	}
 
 	cache->time = time;
 }
 
-static struct drm_tegra_bo_bucket * get_bucket(struct drm_tegra *drm,
-					       uint32_t size)
+drm_private struct drm_tegra_bo_bucket *
+drm_tegra_get_bucket(struct drm_tegra *drm, uint32_t size)
 {
 	struct drm_tegra_bo_cache *cache = &drm->bo_cache;
 	int i;
@@ -134,6 +167,11 @@ static struct drm_tegra_bo_bucket * get_bucket(struct drm_tegra *drm,
 	VDBG_DRM(drm, "failed size %u bytes\n",  size);
 
 	return NULL;
+}
+
+static struct drm_tegra_bo_bucket * bo_bucket(struct drm_tegra_bo *bo)
+{
+	return drm_tegra_get_bucket(bo->drm, bo->size);
 }
 
 static int is_idle(struct drm_tegra_bo *bo)
@@ -160,6 +198,7 @@ static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 		/* TODO check for compatible flags? */
 		if (is_idle(bo)) {
 			DRMLISTDELINIT(&bo->bo_list);
+			bucket->num_entries--;
 		} else {
 			bo = NULL;
 		}
@@ -168,13 +207,14 @@ static struct drm_tegra_bo *find_in_bucket(struct drm_tegra_bo_bucket *bucket,
 	return bo;
 }
 
-static void reset_bo(struct drm_tegra_bo *bo, uint32_t flags)
+drm_private void drm_tegra_reset_bo(struct drm_tegra_bo *bo, uint32_t flags,
+				    bool set_flags)
 {
 	struct drm_tegra_bo_tiling tiling;
 
 	VG_BO_OBTAIN(bo);
 
-	if (bo->custom_flags) {
+	if (set_flags) {
 		/* XXX: Error handling? */
 		drm_tegra_bo_set_flags(bo, flags);
 	}
@@ -211,14 +251,14 @@ drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
 	struct drm_tegra_bo_bucket *bucket;
 
 	*size = align(*size, 4096);
-	bucket = get_bucket(drm, *size);
+	bucket = drm_tegra_get_bucket(drm, *size);
 
 	/* see if we can be green and recycle: */
 	if (bucket) {
 		*size = bucket->size;
 		bo = find_in_bucket(bucket, flags);
 		if (bo) {
-			reset_bo(bo, flags);
+			drm_tegra_reset_bo(bo, flags, true);
 #ifndef NDEBUG
 			if (drm->debug_bo)
 				drm->debug_bos_cached--;
@@ -236,7 +276,7 @@ drm_tegra_bo_cache_free(struct drm_tegra_bo *bo)
 	struct drm_tegra_bo_bucket *bucket;
 
 	/* see if we can be green and recycle: */
-	bucket = get_bucket(drm, bo->size);
+	bucket = drm_tegra_get_bucket(drm, bo->size);
 	if (bucket) {
 		struct timespec time;
 
@@ -254,6 +294,8 @@ drm_tegra_bo_cache_free(struct drm_tegra_bo *bo)
 			DBG_BO_STATS(drm);
 		}
 #endif
+		bucket->num_entries++;
+
 		return 0;
 	}
 
@@ -265,18 +307,25 @@ drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra *drm,
 				struct drm_tegra_bo_mmap_cache *cache,
 				time_t time)
 {
-	struct drm_tegra_bo *bo;
+	struct drm_tegra_bo_bucket *bucket;
+	struct drm_tegra_bo *bo, *tmp;
 
 	if (cache->time == time)
 		return;
 
-	while (!DRMLISTEMPTY(&cache->list)) {
-		bo = DRMLISTENTRY(struct drm_tegra_bo, cache->list.next,
-				  mmap_list);
+	DRMLISTFOREACHENTRYSAFE(bo, tmp, &cache->list, mmap_list) {
+		bucket = NULL;
 
 		/* keep things in cache for at least 3 seconds: */
 		if (time && ((time - bo->unmap_time) <= 3))
 			break;
+
+		if (time) {
+			bucket = bo_bucket(bo);
+
+			if (bucket && !bucket_free_up(drm, bucket, true))
+				continue;
+		}
 
 		if (!RUNNING_ON_VALGRIND)
 			munmap(bo->map_cached, bo->offset + bo->size);
@@ -291,6 +340,8 @@ drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra *drm,
 			drm->debug_bos_cached_pages -= bo->debug_size / 4096;
 		}
 #endif
+		if (bucket)
+			bucket->num_mmap_entries--;
 	}
 
 	cache->time = time;
@@ -301,6 +352,7 @@ drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo)
 {
 	struct drm_tegra *drm = bo->drm;
 	struct drm_tegra_bo_mmap_cache *cache = &drm->mmap_cache;
+	struct drm_tegra_bo_bucket *bucket;
 	struct timespec time;
 
 	clock_gettime(CLOCK_MONOTONIC, &time);
@@ -318,6 +370,10 @@ drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo)
 #endif
 	DBG_BO(bo, "mapping added to cache\n");
 	DBG_BO_STATS(drm);
+
+	bucket = bo_bucket(bo);
+	if (bucket)
+		bucket->num_mmap_entries++;
 }
 
 drm_private void *
@@ -326,6 +382,7 @@ drm_tegra_bo_cache_map(struct drm_tegra_bo *bo)
 #ifndef NDEBUG
 	struct drm_tegra *drm = bo->drm;
 #endif
+	struct drm_tegra_bo_bucket *bucket;
 	void *map_cached = bo->map_cached;
 
 	if (map_cached) {
@@ -337,6 +394,9 @@ drm_tegra_bo_cache_map(struct drm_tegra_bo *bo)
 			drm->debug_bos_cached_pages -= bo->debug_size / 4096;
 		}
 #endif
+		bucket = bo_bucket(bo);
+		if (bucket)
+			bucket->num_mmap_entries--;
 	}
 
 	return map_cached;
