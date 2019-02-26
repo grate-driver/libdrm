@@ -34,7 +34,7 @@
 
 #include "private.h"
 
-drm_private pthread_mutex_t table_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t table_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* lookup a buffer, call with table_lock mutex locked */
 static struct drm_tegra_bo * lookup_bo(void *table, uint32_t key)
@@ -345,7 +345,10 @@ drm_public int drm_tegra_bo_new(struct drm_tegra_bo **bop, struct drm_tegra *drm
 	if (!drm || size == 0 || !bop)
 		return -EINVAL;
 
+	pthread_mutex_lock(&table_lock);
 	bo = drm_tegra_bo_cache_alloc(drm, &size, flags);
+	pthread_mutex_unlock(&table_lock);
+
 	if (bo) {
 		DBG_BO(bo, "success from cache\n");
 		goto out;
