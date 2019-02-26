@@ -104,6 +104,8 @@ enum host1x_class {
 struct drm_tegra_bo_bucket {
 	uint32_t size;
 	drmMMListHead list;
+	uint32_t num_entries;
+	uint32_t num_mmap_entries;
 };
 
 struct drm_tegra_bo_cache {
@@ -177,7 +179,6 @@ struct drm_tegra_bo {
 	void *map_cached;		/* holds cached mmap pointer */
 
 	bool custom_tiling;
-	bool custom_flags;
 
 #ifndef NDEBUG
 	uint32_t debug_size;
@@ -250,6 +251,12 @@ struct drm_tegra_bo * drm_tegra_bo_cache_alloc(struct drm_tegra *drm,
 int drm_tegra_bo_cache_free(struct drm_tegra_bo *bo);
 void drm_tegra_bo_cache_unmap(struct drm_tegra_bo *bo);
 void *drm_tegra_bo_cache_map(struct drm_tegra_bo *bo);
+
+struct drm_tegra_bo_bucket *
+drm_tegra_get_bucket(struct drm_tegra *drm, uint32_t size);
+
+void drm_tegra_reset_bo(struct drm_tegra_bo *bo, uint32_t flags,
+			bool set_flags);
 
 #if HAVE_VALGRIND
 #  include <memcheck.h>

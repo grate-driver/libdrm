@@ -39,6 +39,7 @@ static pthread_mutex_t table_lock = PTHREAD_MUTEX_INITIALIZER;
 /* lookup a buffer, call with table_lock mutex locked */
 static struct drm_tegra_bo * lookup_bo(void *table, uint32_t key)
 {
+	struct drm_tegra_bo_bucket *bucket;
 	struct drm_tegra_bo *bo;
 	void *value;
 
@@ -47,11 +48,20 @@ static struct drm_tegra_bo * lookup_bo(void *table, uint32_t key)
 
 	bo = value;
 
+	if (!DRMLISTEMPTY(&bo->bo_list)) {
+		/* mark BO as available for access under valgrind */
+		drm_tegra_reset_bo(bo, 0, false);
+
+		/* take out BO from the bucket */
+		DRMLISTDELINIT(&bo->bo_list);
+
+		/* update bucket stats */
+		bucket = drm_tegra_get_bucket(bo->drm, bo->size);
+		bucket->num_entries--;
+	}
+
 	/* found, increment reference count */
 	atomic_inc(&bo->ref);
-
-	/* don't break the bucket if this BO was found in one */
-	DRMLISTDELINIT(&bo->bo_list);
 
 	return bo;
 }
@@ -194,6 +204,7 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 {
 	struct drm_tegra *drm = bo->drm;
 	struct drm_gem_close args;
+	void *map_cached;
 	int err;
 
 	DBG_BO(bo, "\n");
@@ -213,16 +224,10 @@ drm_private int drm_tegra_bo_free(struct drm_tegra_bo *bo)
 			munmap(bo->map, bo->offset + bo->size);
 
 	} else if (bo->map_cached) {
-		if (!RUNNING_ON_VALGRIND)
-			munmap(bo->map_cached, bo->offset + bo->size);
+		map_cached = drm_tegra_bo_cache_map(bo);
 
-		DRMLISTDEL(&bo->mmap_list);
-#ifndef NDEBUG
-		if (drm->debug_bo) {
-			drm->debug_bos_mappings_cached--;
-			drm->debug_bos_cached_pages -= bo->debug_size / 4096;
-		}
-#endif
+		if (!RUNNING_ON_VALGRIND)
+			munmap(map_cached, bo->offset + bo->size);
 	} else {
 		goto vg_free;
 	}
