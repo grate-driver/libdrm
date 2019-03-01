@@ -114,6 +114,7 @@ drm_tegra_bo_cache_cleanup(struct drm_tegra *drm,
 			   time_t time)
 {
 	struct drm_tegra_bo_cache *cache = &drm->bo_cache;
+	time_t delta;
 	int i;
 
 	if (cache->time == time)
@@ -130,8 +131,14 @@ drm_tegra_bo_cache_cleanup(struct drm_tegra *drm,
 			bo = DRMLISTENTRY(struct drm_tegra_bo,
 					bucket->list.next, bo_list);
 
+			delta = time - bo->free_time;
+
 			/* keep things in cache for at least 1 second: */
-			if (time && ((time - bo->free_time) <= 1))
+			if (time && delta <= 1)
+				break;
+
+			/* keep things in cache longer if not much */
+			if (time && delta < 60 && bucket->num_entries < 5)
 				break;
 
 			VG_BO_OBTAIN(bo);
@@ -309,6 +316,7 @@ drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra *drm,
 {
 	struct drm_tegra_bo_bucket *bucket;
 	struct drm_tegra_bo *bo, *tmp;
+	time_t delta;
 
 	if (cache->time == time)
 		return;
@@ -316,14 +324,20 @@ drm_tegra_bo_mmap_cache_cleanup(struct drm_tegra *drm,
 	DRMLISTFOREACHENTRYSAFE(bo, tmp, &cache->list, mmap_list) {
 		bucket = NULL;
 
+		delta = time - bo->unmap_time;
+
 		/* keep things in cache for at least 3 seconds: */
-		if (time && ((time - bo->unmap_time) <= 3))
+		if (time && delta <= 3)
 			break;
 
 		if (time) {
 			bucket = bo_bucket(bo);
 
 			if (bucket && !bucket_free_up(drm, bucket, true))
+				continue;
+
+			/* keep things in cache longer if not much */
+			if (delta < 60 && bucket->num_mmap_entries < 5)
 				continue;
 		}
 
