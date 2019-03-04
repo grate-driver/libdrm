@@ -55,6 +55,11 @@ int suite_basic_tests_init();
 int suite_basic_tests_clean();
 
 /**
+ * Decide if the suite is enabled by default or not.
+ */
+CU_BOOL suite_basic_tests_enable(void);
+
+/**
  * Tests in basic test suite
  */
 extern CU_TestInfo basic_tests[];

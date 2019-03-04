@@ -149,7 +149,7 @@ static CU_BOOL always_active()
 static Suites_Active_Status suites_active_stat[] = {
 		{
 			.pName = BASIC_TESTS_STR,
-			.pActive = always_active,
+			.pActive = suite_basic_tests_enable,
 		},
 		{
 			.pName = BO_TESTS_STR,

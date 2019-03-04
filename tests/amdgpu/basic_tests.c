@@ -39,6 +39,7 @@
 
 #include "amdgpu_test.h"
 #include "amdgpu_drm.h"
+#include "amdgpu_internal.h"
 #include "util_math.h"
 
 static  amdgpu_device_handle device_handle;
@@ -597,6 +598,18 @@ static bool asic_is_arcturus(uint32_t asic_id)
 	default:
 		return false;
 	}
+}
+
+CU_BOOL suite_basic_tests_enable(void)
+{
+	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
+					     &minor_version, &device_handle))
+		return CU_FALSE;
+
+	if (amdgpu_device_deinitialize(device_handle))
+		return CU_FALSE;
+
+	return CU_TRUE;
 }
 
 int suite_basic_tests_init(void)
