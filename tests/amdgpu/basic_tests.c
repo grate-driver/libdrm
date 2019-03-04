@@ -602,12 +602,37 @@ static bool asic_is_arcturus(uint32_t asic_id)
 
 CU_BOOL suite_basic_tests_enable(void)
 {
+	uint32_t asic_id;
+
 	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
 					     &minor_version, &device_handle))
 		return CU_FALSE;
 
+	asic_id = device_handle->info.asic_id;
+
 	if (amdgpu_device_deinitialize(device_handle))
 		return CU_FALSE;
+
+	/* disable gfx engine basic test cases for Arturus due to no CPG */
+	if (asic_is_arcturus(asic_id)) {
+		if (amdgpu_set_test_active("Basic Tests",
+					"Command submission Test (GFX)",
+					CU_FALSE))
+			fprintf(stderr, "test deactivation failed - %s\n",
+				CU_get_error_msg());
+
+		if (amdgpu_set_test_active("Basic Tests",
+					"Command submission Test (Multi-Fence)",
+					CU_FALSE))
+			fprintf(stderr, "test deactivation failed - %s\n",
+				CU_get_error_msg());
+
+		if (amdgpu_set_test_active("Basic Tests",
+					"Sync dependency Test",
+					CU_FALSE))
+			fprintf(stderr, "test deactivation failed - %s\n",
+				CU_get_error_msg());
+	}
 
 	return CU_TRUE;
 }
