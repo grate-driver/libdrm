@@ -357,7 +357,8 @@ static const uint32_t preamblecache_gfx9[] = {
 
 enum ps_type {
 	PS_CONST,
-	PS_TEX
+	PS_TEX,
+	PS_HANG
 };
 
 static const uint32_t ps_const_shader_gfx9[] = {
@@ -2783,6 +2784,12 @@ static int amdgpu_draw_load_ps_shader(uint8_t *ptr, int ps_type)
 			patchinfo_code_size = ps_tex_shader_patchinfo_code_size_gfx9;
 			patchcode_offset = ps_tex_shader_patchinfo_offset_gfx9;
 			break;
+		case PS_HANG:
+			shader = memcpy_ps_hang;
+			shader_size = sizeof(memcpy_ps_hang);
+
+			memcpy(ptr, shader, shader_size);
+			return 0;
 		default:
 			return -1;
 			break;
@@ -3236,7 +3243,7 @@ static void amdgpu_memcpy_draw(amdgpu_device_handle device_handle,
 			       amdgpu_bo_handle bo_shader_vs,
 			       uint64_t mc_address_shader_ps,
 			       uint64_t mc_address_shader_vs,
-			       uint32_t ring)
+			       uint32_t ring, int hang)
 {
 	amdgpu_context_handle context_handle;
 	amdgpu_bo_handle bo_dst, bo_src, bo_cmd, resources[5];
@@ -3341,14 +3348,20 @@ static void amdgpu_memcpy_draw(amdgpu_device_handle device_handle,
 	r = amdgpu_cs_query_fence_status(&fence_status,
 					 AMDGPU_TIMEOUT_INFINITE,
 					 0, &expired);
-	CU_ASSERT_EQUAL(r, 0);
-	CU_ASSERT_EQUAL(expired, true);
+	if (!hang) {
+		CU_ASSERT_EQUAL(r, 0);
+		CU_ASSERT_EQUAL(expired, true);
 
-	/* verify if memcpy test result meets with expected */
-	i = 0;
-	while(i < bo_size) {
-		CU_ASSERT_EQUAL(ptr_dst[i], ptr_src[i]);
-		i++;
+		/* verify if memcpy test result meets with expected */
+		i = 0;
+		while(i < bo_size) {
+			CU_ASSERT_EQUAL(ptr_dst[i], ptr_src[i]);
+			i++;
+		}
+	} else {
+		r = amdgpu_cs_query_reset_state(context_handle, &hang_state, &hangs);
+		CU_ASSERT_EQUAL(r, 0);
+		CU_ASSERT_EQUAL(hang_state, AMDGPU_CTX_UNKNOWN_RESET);
 	}
 
 	r = amdgpu_bo_list_destroy(bo_list);
@@ -3366,7 +3379,8 @@ static void amdgpu_memcpy_draw(amdgpu_device_handle device_handle,
 	CU_ASSERT_EQUAL(r, 0);
 }
 
-static void amdgpu_memcpy_draw_test(amdgpu_device_handle device_handle, uint32_t ring)
+void amdgpu_memcpy_draw_test(amdgpu_device_handle device_handle, uint32_t ring,
+			     int hang)
 {
 	amdgpu_bo_handle bo_shader_ps, bo_shader_vs;
 	void *ptr_shader_ps;
@@ -3374,6 +3388,7 @@ static void amdgpu_memcpy_draw_test(amdgpu_device_handle device_handle, uint32_t
 	uint64_t mc_address_shader_ps, mc_address_shader_vs;
 	amdgpu_va_handle va_shader_ps, va_shader_vs;
 	int bo_shader_size = 4096;
+	enum ps_type ps_type = hang ? PS_HANG : PS_TEX;
 	int r;
 
 	r = amdgpu_bo_alloc_and_map(device_handle, bo_shader_size, 4096,
@@ -3390,14 +3405,14 @@ static void amdgpu_memcpy_draw_test(amdgpu_device_handle device_handle, uint32_t
 	CU_ASSERT_EQUAL(r, 0);
 	memset(ptr_shader_vs, 0, bo_shader_size);
 
-	r = amdgpu_draw_load_ps_shader(ptr_shader_ps, PS_TEX);
+	r = amdgpu_draw_load_ps_shader(ptr_shader_ps, ps_type);
 	CU_ASSERT_EQUAL(r, 0);
 
 	r = amdgpu_draw_load_vs_shader(ptr_shader_vs);
 	CU_ASSERT_EQUAL(r, 0);
 
 	amdgpu_memcpy_draw(device_handle, bo_shader_ps, bo_shader_vs,
-			mc_address_shader_ps, mc_address_shader_vs, ring);
+			mc_address_shader_ps, mc_address_shader_vs, ring, hang);
 
 	r = amdgpu_bo_unmap_and_free(bo_shader_ps, va_shader_ps, mc_address_shader_ps, bo_shader_size);
 	CU_ASSERT_EQUAL(r, 0);
@@ -3419,7 +3434,7 @@ static void amdgpu_draw_test(void)
 
 	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
 		amdgpu_memset_draw_test(device_handle, ring_id);
-		amdgpu_memcpy_draw_test(device_handle, ring_id);
+		amdgpu_memcpy_draw_test(device_handle, ring_id, 0);
 	}
 }
 
