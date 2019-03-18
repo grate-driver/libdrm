@@ -306,7 +306,8 @@ static  uint32_t shader_bin[] = {
 
 enum cs_type {
 	CS_BUFFERCLEAR,
-	CS_BUFFERCOPY
+	CS_BUFFERCOPY,
+	CS_HANG
 };
 
 static const uint32_t bufferclear_cs_shader_gfx9[] = {
@@ -466,6 +467,14 @@ static const uint32_t cached_cmd_gfx9[] = {
 	0xc0036900, 0x200, 0x0, 0x10000, 0xcc0011,
 	0xc0026900, 0x292, 0x20, 0x60201b8,
 	0xc0026900, 0x2b0, 0x0, 0x0, 0xc0016900, 0x2f8, 0x0
+};
+
+unsigned int memcpy_ps_hang[] = {
+        0xFFFFFFFF, 0xBEFE0A7E, 0xBEFC0304, 0xC0C20100,
+        0xC0800300, 0xC8080000, 0xC80C0100, 0xC8090001,
+        0xC80D0101, 0xBF8C007F, 0xF0800F00, 0x00010002,
+        0xBEFE040C, 0xBF8C0F70, 0xBF800000, 0xBF800000,
+        0xF800180F, 0x03020100, 0xBF810000
 };
 
 int amdgpu_bo_alloc_and_map_raw(amdgpu_device_handle dev, unsigned size,
@@ -2080,6 +2089,10 @@ static int amdgpu_dispatch_load_cs_shader(uint8_t *ptr,
 			shader = buffercopy_cs_shader_gfx9;
 			shader_size = sizeof(buffercopy_cs_shader_gfx9);
 			break;
+		case CS_HANG:
+			shader = memcpy_ps_hang;
+			shader_size = sizeof(memcpy_ps_hang);
+			break;
 		default:
 			return -1;
 			break;
@@ -2300,7 +2313,8 @@ static void amdgpu_memset_dispatch_test(amdgpu_device_handle device_handle,
 
 static void amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 					uint32_t ip_type,
-					uint32_t ring)
+					uint32_t ring,
+					int hang)
 {
 	amdgpu_context_handle context_handle;
 	amdgpu_bo_handle bo_src, bo_dst, bo_shader, bo_cmd, resources[4];
@@ -2316,7 +2330,8 @@ static void amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	int bo_cmd_size = 4096;
 	struct amdgpu_cs_request ibs_request = {0};
 	struct amdgpu_cs_ib_info ib_info= {0};
-	uint32_t expired;
+	uint32_t expired, hang_state, hangs;
+	enum cs_type cs_type;
 	amdgpu_bo_list_handle bo_list;
 	struct amdgpu_cs_fence fence_status = {0};
 
@@ -2337,7 +2352,8 @@ static void amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	CU_ASSERT_EQUAL(r, 0);
 	memset(ptr_shader, 0, bo_shader_size);
 
-	r = amdgpu_dispatch_load_cs_shader(ptr_shader, CS_BUFFERCOPY );
+	cs_type = hang ? CS_HANG : CS_BUFFERCOPY;
+	r = amdgpu_dispatch_load_cs_shader(ptr_shader, cs_type);
 	CU_ASSERT_EQUAL(r, 0);
 
 	r = amdgpu_bo_alloc_and_map(device_handle, bo_dst_size, 4096,
@@ -2423,14 +2439,21 @@ static void amdgpu_memcpy_dispatch_test(amdgpu_device_handle device_handle,
 	r = amdgpu_cs_query_fence_status(&fence_status,
 					 AMDGPU_TIMEOUT_INFINITE,
 					 0, &expired);
-	CU_ASSERT_EQUAL(r, 0);
-	CU_ASSERT_EQUAL(expired, true);
 
-	/* verify if memcpy test result meets with expected */
-	i = 0;
-	while(i < bo_dst_size) {
-		CU_ASSERT_EQUAL(ptr_dst[i], ptr_src[i]);
-		i++;
+	if (!hang) {
+		CU_ASSERT_EQUAL(r, 0);
+		CU_ASSERT_EQUAL(expired, true);
+
+		/* verify if memcpy test result meets with expected */
+		i = 0;
+		while(i < bo_dst_size) {
+			CU_ASSERT_EQUAL(ptr_dst[i], ptr_src[i]);
+			i++;
+		}
+	} else {
+		r = amdgpu_cs_query_reset_state(context_handle, &hang_state, &hangs);
+		CU_ASSERT_EQUAL(r, 0);
+		CU_ASSERT_EQUAL(hang_state, AMDGPU_CTX_UNKNOWN_RESET);
 	}
 
 	r = amdgpu_bo_list_destroy(bo_list);
@@ -2464,7 +2487,7 @@ static void amdgpu_compute_dispatch_test(void)
 
 	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
 		amdgpu_memset_dispatch_test(device_handle, AMDGPU_HW_IP_COMPUTE, ring_id);
-		amdgpu_memcpy_dispatch_test(device_handle, AMDGPU_HW_IP_COMPUTE, ring_id);
+		amdgpu_memcpy_dispatch_test(device_handle, AMDGPU_HW_IP_COMPUTE, ring_id, 0);
 	}
 }
 
@@ -2481,7 +2504,25 @@ static void amdgpu_gfx_dispatch_test(void)
 
 	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
 		amdgpu_memset_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, ring_id);
-		amdgpu_memcpy_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, ring_id);
+		amdgpu_memcpy_dispatch_test(device_handle, AMDGPU_HW_IP_GFX, ring_id, 0);
+	}
+}
+
+void amdgpu_dispatch_hang_helper(amdgpu_device_handle device_handle, uint32_t ip_type)
+{
+	int r;
+	struct drm_amdgpu_info_hw_ip info;
+	uint32_t ring_id;
+
+	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &info);
+	CU_ASSERT_EQUAL(r, 0);
+	if (!info.available_rings)
+		printf("SKIP ... as there's no ring for ip %d\n", ip_type);
+
+	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
+		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id, 0);
+		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id, 1);
+		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id, 0);
 	}
 }
 
