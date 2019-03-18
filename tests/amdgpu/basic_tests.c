@@ -307,7 +307,8 @@ static  uint32_t shader_bin[] = {
 enum cs_type {
 	CS_BUFFERCLEAR,
 	CS_BUFFERCOPY,
-	CS_HANG
+	CS_HANG,
+	CS_HANG_SLOW
 };
 
 static const uint32_t bufferclear_cs_shader_gfx9[] = {
@@ -475,6 +476,37 @@ unsigned int memcpy_ps_hang[] = {
         0xC80D0101, 0xBF8C007F, 0xF0800F00, 0x00010002,
         0xBEFE040C, 0xBF8C0F70, 0xBF800000, 0xBF800000,
         0xF800180F, 0x03020100, 0xBF810000
+};
+
+struct amdgpu_test_shader {
+	uint32_t *shader;
+	uint32_t header_length;
+	uint32_t body_length;
+	uint32_t foot_length;
+};
+
+unsigned int memcpy_cs_hang_slow_ai_codes[] = {
+    0xd1fd0000, 0x04010c08, 0xe00c2000, 0x80000100,
+    0xbf8c0f70, 0xe01c2000, 0x80010100, 0xbf810000
+};
+
+struct amdgpu_test_shader memcpy_cs_hang_slow_ai = {
+        memcpy_cs_hang_slow_ai_codes,
+        4,
+        3,
+        1
+};
+
+unsigned int memcpy_cs_hang_slow_rv_codes[] = {
+    0x8e00860c, 0x32000000, 0xe00c2000, 0x80010100,
+    0xbf8c0f70, 0xe01c2000, 0x80020100, 0xbf810000
+};
+
+struct amdgpu_test_shader memcpy_cs_hang_slow_rv = {
+        memcpy_cs_hang_slow_rv_codes,
+        4,
+        3,
+        1
 };
 
 int amdgpu_bo_alloc_and_map_raw(amdgpu_device_handle dev, unsigned size,
@@ -2074,6 +2106,37 @@ static void amdgpu_sync_dependency_test(void)
 	free(ibs_request.dependencies);
 }
 
+static int amdgpu_dispatch_load_cs_shader_hang_slow(uint32_t *ptr, int family)
+{
+	struct amdgpu_test_shader *shader;
+	int i, loop = 0x10000;
+
+	switch (family) {
+		case AMDGPU_FAMILY_AI:
+			shader = &memcpy_cs_hang_slow_ai;
+			break;
+		case AMDGPU_FAMILY_RV:
+			shader = &memcpy_cs_hang_slow_rv;
+			break;
+		default:
+			return -1;
+			break;
+	}
+
+	memcpy(ptr, shader->shader, shader->header_length * sizeof(uint32_t));
+
+	for (i = 0; i < loop; i++)
+		memcpy(ptr + shader->header_length + shader->body_length * i,
+			shader->shader + shader->header_length,
+			shader->body_length * sizeof(uint32_t));
+
+	memcpy(ptr + shader->header_length + shader->body_length * loop,
+		shader->shader + shader->header_length + shader->body_length,
+		shader->foot_length * sizeof(uint32_t));
+
+	return 0;
+}
+
 static int amdgpu_dispatch_load_cs_shader(uint8_t *ptr,
 					   int cs_type)
 {
@@ -2522,6 +2585,175 @@ void amdgpu_dispatch_hang_helper(amdgpu_device_handle device_handle, uint32_t ip
 	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
 		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id, 0);
 		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id, 1);
+		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id, 0);
+	}
+}
+
+static void amdgpu_memcpy_dispatch_hang_slow_test(amdgpu_device_handle device_handle,
+						  uint32_t ip_type, uint32_t ring)
+{
+	amdgpu_context_handle context_handle;
+	amdgpu_bo_handle bo_src, bo_dst, bo_shader, bo_cmd, resources[4];
+	volatile unsigned char *ptr_dst;
+	void *ptr_shader;
+	unsigned char *ptr_src;
+	uint32_t *ptr_cmd;
+	uint64_t mc_address_src, mc_address_dst, mc_address_shader, mc_address_cmd;
+	amdgpu_va_handle va_src, va_dst, va_shader, va_cmd;
+	int i, r;
+	int bo_dst_size = 0x4000000;
+	int bo_shader_size = 0x400000;
+	int bo_cmd_size = 4096;
+	struct amdgpu_cs_request ibs_request = {0};
+	struct amdgpu_cs_ib_info ib_info= {0};
+	uint32_t hang_state, hangs, expired;
+	struct amdgpu_gpu_info gpu_info = {0};
+	amdgpu_bo_list_handle bo_list;
+	struct amdgpu_cs_fence fence_status = {0};
+
+	r = amdgpu_query_gpu_info(device_handle, &gpu_info);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_cmd_size, 4096,
+				    AMDGPU_GEM_DOMAIN_GTT, 0,
+				    &bo_cmd, (void **)&ptr_cmd,
+				    &mc_address_cmd, &va_cmd);
+	CU_ASSERT_EQUAL(r, 0);
+	memset(ptr_cmd, 0, bo_cmd_size);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_shader_size, 4096,
+					AMDGPU_GEM_DOMAIN_VRAM, 0,
+					&bo_shader, &ptr_shader,
+					&mc_address_shader, &va_shader);
+	CU_ASSERT_EQUAL(r, 0);
+	memset(ptr_shader, 0, bo_shader_size);
+
+	r = amdgpu_dispatch_load_cs_shader_hang_slow(ptr_shader, gpu_info.family_id);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_dst_size, 4096,
+					AMDGPU_GEM_DOMAIN_VRAM, 0,
+					&bo_src, (void **)&ptr_src,
+					&mc_address_src, &va_src);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_dst_size, 4096,
+					AMDGPU_GEM_DOMAIN_VRAM, 0,
+					&bo_dst, (void **)&ptr_dst,
+					&mc_address_dst, &va_dst);
+	CU_ASSERT_EQUAL(r, 0);
+
+	memset(ptr_src, 0x55, bo_dst_size);
+
+	i = 0;
+	i += amdgpu_dispatch_init(ptr_cmd + i, ip_type);
+
+	/*  Issue commands to set cu mask used in current dispatch */
+	i += amdgpu_dispatch_write_cumask(ptr_cmd + i);
+
+	/* Writes shader state to HW */
+	i += amdgpu_dispatch_write2hw(ptr_cmd + i, mc_address_shader);
+
+	/* Write constant data */
+	/* Writes the texture resource constants data to the SGPRs */
+	ptr_cmd[i++] = PACKET3_COMPUTE(PKT3_SET_SH_REG, 4);
+	ptr_cmd[i++] = 0x240;
+	ptr_cmd[i++] = mc_address_src;
+	ptr_cmd[i++] = (mc_address_src >> 32) | 0x100000;
+	ptr_cmd[i++] = 0x400000;
+	ptr_cmd[i++] = 0x74fac;
+
+	/* Writes the UAV constant data to the SGPRs. */
+	ptr_cmd[i++] = PACKET3_COMPUTE(PKT3_SET_SH_REG, 4);
+	ptr_cmd[i++] = 0x244;
+	ptr_cmd[i++] = mc_address_dst;
+	ptr_cmd[i++] = (mc_address_dst >> 32) | 0x100000;
+	ptr_cmd[i++] = 0x400000;
+	ptr_cmd[i++] = 0x74fac;
+
+	/* clear mmCOMPUTE_RESOURCE_LIMITS */
+	ptr_cmd[i++] = PACKET3_COMPUTE(PKT3_SET_SH_REG, 1);
+	ptr_cmd[i++] = 0x215;
+	ptr_cmd[i++] = 0;
+
+	/* dispatch direct command */
+	ptr_cmd[i++] = PACKET3_COMPUTE(PACKET3_DISPATCH_DIRECT, 3);
+	ptr_cmd[i++] = 0x10000;
+	ptr_cmd[i++] = 1;
+	ptr_cmd[i++] = 1;
+	ptr_cmd[i++] = 1;
+
+	while (i & 7)
+		ptr_cmd[i++] = 0xffff1000; /* type3 nop packet */
+
+	resources[0] = bo_shader;
+	resources[1] = bo_src;
+	resources[2] = bo_dst;
+	resources[3] = bo_cmd;
+	r = amdgpu_bo_list_create(device_handle, 4, resources, NULL, &bo_list);
+	CU_ASSERT_EQUAL(r, 0);
+
+	ib_info.ib_mc_address = mc_address_cmd;
+	ib_info.size = i;
+	ibs_request.ip_type = ip_type;
+	ibs_request.ring = ring;
+	ibs_request.resources = bo_list;
+	ibs_request.number_of_ibs = 1;
+	ibs_request.ibs = &ib_info;
+	ibs_request.fence_info.handle = NULL;
+	r = amdgpu_cs_submit(context_handle, 0, &ibs_request, 1);
+	CU_ASSERT_EQUAL(r, 0);
+
+	fence_status.ip_type = ip_type;
+	fence_status.ip_instance = 0;
+	fence_status.ring = ring;
+	fence_status.context = context_handle;
+	fence_status.fence = ibs_request.seq_no;
+
+	/* wait for IB accomplished */
+	r = amdgpu_cs_query_fence_status(&fence_status,
+					 AMDGPU_TIMEOUT_INFINITE,
+					 0, &expired);
+
+	r = amdgpu_cs_query_reset_state(context_handle, &hang_state, &hangs);
+	CU_ASSERT_EQUAL(r, 0);
+	CU_ASSERT_EQUAL(hang_state, AMDGPU_CTX_UNKNOWN_RESET);
+
+	r = amdgpu_bo_list_destroy(bo_list);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_unmap_and_free(bo_src, va_src, mc_address_src, bo_dst_size);
+	CU_ASSERT_EQUAL(r, 0);
+	r = amdgpu_bo_unmap_and_free(bo_dst, va_dst, mc_address_dst, bo_dst_size);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_unmap_and_free(bo_cmd, va_cmd, mc_address_cmd, bo_cmd_size);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_unmap_and_free(bo_shader, va_shader, mc_address_shader, bo_shader_size);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_cs_ctx_free(context_handle);
+	CU_ASSERT_EQUAL(r, 0);
+}
+
+void amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle, uint32_t ip_type)
+{
+	int r;
+	struct drm_amdgpu_info_hw_ip info;
+	uint32_t ring_id;
+
+	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &info);
+	CU_ASSERT_EQUAL(r, 0);
+	if (!info.available_rings)
+		printf("SKIP ... as there's no ring for ip %d\n", ip_type);
+
+	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
+		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id, 0);
+		amdgpu_memcpy_dispatch_hang_slow_test(device_handle, ip_type, ring_id);
 		amdgpu_memcpy_dispatch_test(device_handle, ip_type, ring_id, 0);
 	}
 }

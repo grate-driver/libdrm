@@ -116,6 +116,8 @@ static void amdgpu_illegal_mem_access();
 static void amdgpu_deadlock_sdma(void);
 static void amdgpu_dispatch_hang_gfx(void);
 static void amdgpu_dispatch_hang_compute(void);
+static void amdgpu_dispatch_hang_slow_gfx(void);
+static void amdgpu_dispatch_hang_slow_compute(void);
 
 CU_BOOL suite_deadlock_tests_enable(void)
 {
@@ -182,6 +184,8 @@ CU_TestInfo deadlock_tests[] = {
 	{ "illegal mem access test (set amdgpu.vm_fault_stop=2)", amdgpu_illegal_mem_access },
 	{ "gfx ring bad dispatch test (set amdgpu.lockup_timeout=50)", amdgpu_dispatch_hang_gfx },
 	{ "compute ring bad dispatch test (set amdgpu.lockup_timeout=50,50)", amdgpu_dispatch_hang_compute },
+	{ "gfx ring bad slow dispatch test (set amdgpu.lockup_timeout=50)", amdgpu_dispatch_hang_slow_gfx },
+	{ "compute ring bad slow dispatch test (set amdgpu.lockup_timeout=50,50)", amdgpu_dispatch_hang_slow_compute },
 	CU_TEST_INFO_NULL,
 };
 
@@ -491,4 +495,14 @@ static void amdgpu_dispatch_hang_gfx(void)
 static void amdgpu_dispatch_hang_compute(void)
 {
 	amdgpu_dispatch_hang_helper(device_handle, AMDGPU_HW_IP_COMPUTE);
+}
+
+static void amdgpu_dispatch_hang_slow_gfx(void)
+{
+	amdgpu_dispatch_hang_slow_helper(device_handle, AMDGPU_HW_IP_GFX);
+}
+
+static void amdgpu_dispatch_hang_slow_compute(void)
+{
+	amdgpu_dispatch_hang_slow_helper(device_handle, AMDGPU_HW_IP_COMPUTE);
 }

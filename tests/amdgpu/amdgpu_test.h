@@ -237,6 +237,7 @@ CU_BOOL suite_syncobj_timeline_tests_enable(void);
 extern CU_TestInfo syncobj_timeline_tests[];
 
 void amdgpu_dispatch_hang_helper(amdgpu_device_handle device_handle, uint32_t ip_type);
+void amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle, uint32_t ip_type);
 
 /**
  * Helper functions

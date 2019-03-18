@@ -464,6 +464,18 @@ static void amdgpu_disable_suites()
 				"compute ring bad dispatch test (set amdgpu.lockup_timeout=50)", CU_FALSE))
 			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
 
+	/* This test was ran on GFX9 only */
+	//if (family_id < AMDGPU_FAMILY_AI || family_id > AMDGPU_FAMILY_RV)
+		if (amdgpu_set_test_active(DEADLOCK_TESTS_STR,
+				"gfx ring bad slow dispatch test (set amdgpu.lockup_timeout=50)", CU_FALSE))
+			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
+
+	/* This test was ran on GFX9 only */
+	//if (family_id < AMDGPU_FAMILY_AI || family_id > AMDGPU_FAMILY_RV)
+		if (amdgpu_set_test_active(DEADLOCK_TESTS_STR,
+				"compute ring bad slow dispatch test (set amdgpu.lockup_timeout=50,50)", CU_FALSE))
+			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
+
 	if (amdgpu_set_test_active(BO_TESTS_STR, "Metadata", CU_FALSE))
 		fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
 
