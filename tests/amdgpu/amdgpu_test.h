@@ -240,6 +240,8 @@ void amdgpu_dispatch_hang_helper(amdgpu_device_handle device_handle, uint32_t ip
 void amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle, uint32_t ip_type);
 void amdgpu_memcpy_draw_test(amdgpu_device_handle device_handle, uint32_t ring,
 			     int hang);
+void amdgpu_memcpy_draw_hang_slow_test(amdgpu_device_handle device_handle, uint32_t ring);
+
 /**
  * Helper functions
  */

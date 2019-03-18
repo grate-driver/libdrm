@@ -358,7 +358,8 @@ static const uint32_t preamblecache_gfx9[] = {
 enum ps_type {
 	PS_CONST,
 	PS_TEX,
-	PS_HANG
+	PS_HANG,
+	PS_HANG_SLOW
 };
 
 static const uint32_t ps_const_shader_gfx9[] = {
@@ -508,6 +509,21 @@ struct amdgpu_test_shader memcpy_cs_hang_slow_rv = {
         4,
         3,
         1
+};
+
+unsigned int memcpy_ps_hang_slow_ai_codes[] = {
+        0xbefc000c, 0xbe8e017e, 0xbefe077e, 0xd4080000,
+        0xd4090001, 0xd40c0100, 0xd40d0101, 0xf0800f00,
+        0x00400002, 0xbefe010e, 0xbf8c0f70, 0xbf800000,
+        0xbf800000, 0xbf800000, 0xbf800000, 0xc400180f,
+        0x03020100, 0xbf810000
+};
+
+struct amdgpu_test_shader memcpy_ps_hang_slow_ai = {
+        memcpy_ps_hang_slow_ai_codes,
+        7,
+        2,
+        9
 };
 
 int amdgpu_bo_alloc_and_map_raw(amdgpu_device_handle dev, unsigned size,
@@ -2759,6 +2775,35 @@ void amdgpu_dispatch_hang_slow_helper(amdgpu_device_handle device_handle, uint32
 	}
 }
 
+static int amdgpu_draw_load_ps_shader_hang_slow(uint32_t *ptr, int family)
+{
+	struct amdgpu_test_shader *shader;
+	int i, loop = 0x40000;
+
+	switch (family) {
+		case AMDGPU_FAMILY_AI:
+		case AMDGPU_FAMILY_RV:
+			shader = &memcpy_ps_hang_slow_ai;
+			break;
+		default:
+			return -1;
+			break;
+	}
+
+	memcpy(ptr, shader->shader, shader->header_length * sizeof(uint32_t));
+
+	for (i = 0; i < loop; i++)
+		memcpy(ptr + shader->header_length + shader->body_length * i,
+			shader->shader + shader->header_length,
+			shader->body_length * sizeof(uint32_t));
+
+	memcpy(ptr + shader->header_length + shader->body_length * loop,
+		shader->shader + shader->header_length + shader->body_length,
+		shader->foot_length * sizeof(uint32_t));
+
+	return 0;
+}
+
 static int amdgpu_draw_load_ps_shader(uint8_t *ptr, int ps_type)
 {
 	int i;
@@ -2846,7 +2891,8 @@ static int amdgpu_draw_init(uint32_t *ptr)
 }
 
 static int amdgpu_draw_setup_and_write_drawblt_surf_info(uint32_t *ptr,
-							 uint64_t dst_addr)
+							 uint64_t dst_addr,
+							 int hang_slow)
 {
 	int i = 0;
 
@@ -2871,7 +2917,7 @@ static int amdgpu_draw_setup_and_write_drawblt_surf_info(uint32_t *ptr,
 	ptr[i++] = 0x318;
 	ptr[i++] = dst_addr >> 8;
 	ptr[i++] = dst_addr >> 40;
-	ptr[i++] = 0x7c01f;
+	ptr[i++] = hang_slow ? 0x1ffc7ff : 0x7c01f;
 	ptr[i++] = 0;
 	ptr[i++] = 0x50438;
 	ptr[i++] = 0x10140000;
@@ -2880,7 +2926,7 @@ static int amdgpu_draw_setup_and_write_drawblt_surf_info(uint32_t *ptr,
 	/* mmCB_MRT0_EPITCH */
 	ptr[i++] = PACKET3(PACKET3_SET_CONTEXT_REG, 1);
 	ptr[i++] = 0x1e8;
-	ptr[i++] = 0x1f;
+	ptr[i++] = hang_slow ? 0x7ff : 0x1f;
 
 	/* 0xA32B   CB_COLOR1_BASE */
 	ptr[i++] = PACKET3(PACKET3_SET_CONTEXT_REG, 1);
@@ -2906,7 +2952,7 @@ static int amdgpu_draw_setup_and_write_drawblt_surf_info(uint32_t *ptr,
 	return i;
 }
 
-static int amdgpu_draw_setup_and_write_drawblt_state(uint32_t *ptr)
+static int amdgpu_draw_setup_and_write_drawblt_state(uint32_t *ptr, int hang_slow)
 {
 	int i = 0;
 	const uint32_t *cached_cmd_ptr;
@@ -2938,6 +2984,8 @@ static int amdgpu_draw_setup_and_write_drawblt_state(uint32_t *ptr)
 	cached_cmd_size = sizeof(cached_cmd_gfx9);
 
 	memcpy(ptr + i, cached_cmd_ptr, cached_cmd_size);
+	if (hang_slow)
+		*(ptr + i + 12) = 0x8000800;
 	i += cached_cmd_size/sizeof(uint32_t);
 
 	return i;
@@ -2945,7 +2993,8 @@ static int amdgpu_draw_setup_and_write_drawblt_state(uint32_t *ptr)
 
 static int amdgpu_draw_vs_RectPosTexFast_write2hw(uint32_t *ptr,
 						  int ps_type,
-						  uint64_t shader_addr)
+						  uint64_t shader_addr,
+						  int hang_slow)
 {
 	int i = 0;
 
@@ -2987,8 +3036,8 @@ static int amdgpu_draw_vs_RectPosTexFast_write2hw(uint32_t *ptr,
 	ptr[i++] = PACKET3(PKT3_SET_SH_REG, 4);
 	ptr[i++] = 0x4c;
 	i += 2;
-	ptr[i++] = 0x42000000;
-	ptr[i++] = 0x42000000;
+	ptr[i++] = hang_slow ? 0x45000000 : 0x42000000;
+	ptr[i++] = hang_slow ? 0x45000000 : 0x42000000;
 
 	ptr[i++] = PACKET3(PKT3_SET_SH_REG, 4);
 	ptr[i++] = 0x50;
@@ -3125,11 +3174,11 @@ void amdgpu_memset_draw(amdgpu_device_handle device_handle,
 	i = 0;
 	i += amdgpu_draw_init(ptr_cmd + i);
 
-	i += amdgpu_draw_setup_and_write_drawblt_surf_info(ptr_cmd + i, mc_address_dst);
+	i += amdgpu_draw_setup_and_write_drawblt_surf_info(ptr_cmd + i, mc_address_dst, 0);
 
-	i += amdgpu_draw_setup_and_write_drawblt_state(ptr_cmd + i);
+	i += amdgpu_draw_setup_and_write_drawblt_state(ptr_cmd + i, 0);
 
-	i += amdgpu_draw_vs_RectPosTexFast_write2hw(ptr_cmd + i, PS_CONST, mc_address_shader_vs);
+	i += amdgpu_draw_vs_RectPosTexFast_write2hw(ptr_cmd + i, PS_CONST, mc_address_shader_vs, 0);
 
 	i += amdgpu_draw_ps_write2hw(ptr_cmd + i, PS_CONST, mc_address_shader_ps);
 
@@ -3288,11 +3337,11 @@ static void amdgpu_memcpy_draw(amdgpu_device_handle device_handle,
 	i = 0;
 	i += amdgpu_draw_init(ptr_cmd + i);
 
-	i += amdgpu_draw_setup_and_write_drawblt_surf_info(ptr_cmd + i, mc_address_dst);
+	i += amdgpu_draw_setup_and_write_drawblt_surf_info(ptr_cmd + i, mc_address_dst, 0);
 
-	i += amdgpu_draw_setup_and_write_drawblt_state(ptr_cmd + i);
+	i += amdgpu_draw_setup_and_write_drawblt_state(ptr_cmd + i, 0);
 
-	i += amdgpu_draw_vs_RectPosTexFast_write2hw(ptr_cmd + i, PS_TEX, mc_address_shader_vs);
+	i += amdgpu_draw_vs_RectPosTexFast_write2hw(ptr_cmd + i, PS_TEX, mc_address_shader_vs, 0);
 
 	i += amdgpu_draw_ps_write2hw(ptr_cmd + i, PS_TEX, mc_address_shader_ps);
 
@@ -3436,6 +3485,168 @@ static void amdgpu_draw_test(void)
 		amdgpu_memset_draw_test(device_handle, ring_id);
 		amdgpu_memcpy_draw_test(device_handle, ring_id, 0);
 	}
+}
+
+void amdgpu_memcpy_draw_hang_slow_test(amdgpu_device_handle device_handle, uint32_t ring)
+{
+	amdgpu_context_handle context_handle;
+	amdgpu_bo_handle bo_shader_ps, bo_shader_vs;
+	amdgpu_bo_handle bo_dst, bo_src, bo_cmd, resources[5];
+	void *ptr_shader_ps;
+	void *ptr_shader_vs;
+	volatile unsigned char *ptr_dst;
+	unsigned char *ptr_src;
+	uint32_t *ptr_cmd;
+	uint64_t mc_address_dst, mc_address_src, mc_address_cmd;
+	uint64_t mc_address_shader_ps, mc_address_shader_vs;
+	amdgpu_va_handle va_shader_ps, va_shader_vs;
+	amdgpu_va_handle va_dst, va_src, va_cmd;
+	struct amdgpu_gpu_info gpu_info = {0};
+	int i, r;
+	int bo_size = 0x4000000;
+	int bo_shader_ps_size = 0x400000;
+	int bo_shader_vs_size = 4096;
+	int bo_cmd_size = 4096;
+	struct amdgpu_cs_request ibs_request = {0};
+	struct amdgpu_cs_ib_info ib_info= {0};
+	uint32_t hang_state, hangs, expired;
+	amdgpu_bo_list_handle bo_list;
+	struct amdgpu_cs_fence fence_status = {0};
+
+	r = amdgpu_query_gpu_info(device_handle, &gpu_info);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_cmd_size, 4096,
+				    AMDGPU_GEM_DOMAIN_GTT, 0,
+				    &bo_cmd, (void **)&ptr_cmd,
+				    &mc_address_cmd, &va_cmd);
+	CU_ASSERT_EQUAL(r, 0);
+	memset(ptr_cmd, 0, bo_cmd_size);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_shader_ps_size, 4096,
+					AMDGPU_GEM_DOMAIN_VRAM, 0,
+					&bo_shader_ps, &ptr_shader_ps,
+					&mc_address_shader_ps, &va_shader_ps);
+	CU_ASSERT_EQUAL(r, 0);
+	memset(ptr_shader_ps, 0, bo_shader_ps_size);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_shader_vs_size, 4096,
+					AMDGPU_GEM_DOMAIN_VRAM, 0,
+					&bo_shader_vs, &ptr_shader_vs,
+					&mc_address_shader_vs, &va_shader_vs);
+	CU_ASSERT_EQUAL(r, 0);
+	memset(ptr_shader_vs, 0, bo_shader_vs_size);
+
+	r = amdgpu_draw_load_ps_shader_hang_slow(ptr_shader_ps, gpu_info.family_id);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_draw_load_vs_shader(ptr_shader_vs);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_size, 4096,
+					AMDGPU_GEM_DOMAIN_VRAM, 0,
+					&bo_src, (void **)&ptr_src,
+					&mc_address_src, &va_src);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, bo_size, 4096,
+					AMDGPU_GEM_DOMAIN_VRAM, 0,
+					&bo_dst, (void **)&ptr_dst,
+					&mc_address_dst, &va_dst);
+	CU_ASSERT_EQUAL(r, 0);
+
+	memset(ptr_src, 0x55, bo_size);
+
+	i = 0;
+	i += amdgpu_draw_init(ptr_cmd + i);
+
+	i += amdgpu_draw_setup_and_write_drawblt_surf_info(ptr_cmd + i, mc_address_dst, 1);
+
+	i += amdgpu_draw_setup_and_write_drawblt_state(ptr_cmd + i, 1);
+
+	i += amdgpu_draw_vs_RectPosTexFast_write2hw(ptr_cmd + i, PS_TEX,
+							mc_address_shader_vs, 1);
+
+	i += amdgpu_draw_ps_write2hw(ptr_cmd + i, PS_TEX, mc_address_shader_ps);
+
+	ptr_cmd[i++] = PACKET3(PKT3_SET_SH_REG, 8);
+	ptr_cmd[i++] = 0xc;
+	ptr_cmd[i++] = mc_address_src >> 8;
+	ptr_cmd[i++] = mc_address_src >> 40 | 0x10e00000;
+	ptr_cmd[i++] = 0x1ffc7ff;
+	ptr_cmd[i++] = 0x90500fac;
+	ptr_cmd[i++] = 0xffe000;
+	i += 3;
+
+	ptr_cmd[i++] = PACKET3(PKT3_SET_SH_REG, 4);
+	ptr_cmd[i++] = 0x14;
+	ptr_cmd[i++] = 0x92;
+	i += 3;
+
+	ptr_cmd[i++] = PACKET3(PACKET3_SET_CONTEXT_REG, 1);
+	ptr_cmd[i++] = 0x191;
+	ptr_cmd[i++] = 0;
+
+	i += amdgpu_draw_draw(ptr_cmd + i);
+
+	while (i & 7)
+		ptr_cmd[i++] = 0xffff1000; /* type3 nop packet */
+
+	resources[0] = bo_dst;
+	resources[1] = bo_src;
+	resources[2] = bo_shader_ps;
+	resources[3] = bo_shader_vs;
+	resources[4] = bo_cmd;
+	r = amdgpu_bo_list_create(device_handle, 5, resources, NULL, &bo_list);
+	CU_ASSERT_EQUAL(r, 0);
+
+	ib_info.ib_mc_address = mc_address_cmd;
+	ib_info.size = i;
+	ibs_request.ip_type = AMDGPU_HW_IP_GFX;
+	ibs_request.ring = ring;
+	ibs_request.resources = bo_list;
+	ibs_request.number_of_ibs = 1;
+	ibs_request.ibs = &ib_info;
+	ibs_request.fence_info.handle = NULL;
+	r = amdgpu_cs_submit(context_handle, 0, &ibs_request, 1);
+	CU_ASSERT_EQUAL(r, 0);
+
+	fence_status.ip_type = AMDGPU_HW_IP_GFX;
+	fence_status.ip_instance = 0;
+	fence_status.ring = ring;
+	fence_status.context = context_handle;
+	fence_status.fence = ibs_request.seq_no;
+
+	/* wait for IB accomplished */
+	r = amdgpu_cs_query_fence_status(&fence_status,
+					 AMDGPU_TIMEOUT_INFINITE,
+					 0, &expired);
+
+	r = amdgpu_cs_query_reset_state(context_handle, &hang_state, &hangs);
+	CU_ASSERT_EQUAL(r, 0);
+	CU_ASSERT_EQUAL(hang_state, AMDGPU_CTX_UNKNOWN_RESET);
+
+	r = amdgpu_bo_list_destroy(bo_list);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_unmap_and_free(bo_dst, va_dst, mc_address_dst, bo_size);
+	CU_ASSERT_EQUAL(r, 0);
+	r = amdgpu_bo_unmap_and_free(bo_src, va_src, mc_address_src, bo_size);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_unmap_and_free(bo_cmd, va_cmd, mc_address_cmd, bo_cmd_size);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_unmap_and_free(bo_shader_ps, va_shader_ps, mc_address_shader_ps, bo_shader_ps_size);
+	CU_ASSERT_EQUAL(r, 0);
+	r = amdgpu_bo_unmap_and_free(bo_shader_vs, va_shader_vs, mc_address_shader_vs, bo_shader_vs_size);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_cs_ctx_free(context_handle);
+	CU_ASSERT_EQUAL(r, 0);
 }
 
 static void amdgpu_gpu_reset_test(void)

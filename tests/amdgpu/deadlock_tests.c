@@ -119,6 +119,7 @@ static void amdgpu_dispatch_hang_compute(void);
 static void amdgpu_dispatch_hang_slow_gfx(void);
 static void amdgpu_dispatch_hang_slow_compute(void);
 static void amdgpu_draw_hang_gfx(void);
+static void amdgpu_draw_hang_slow_gfx(void);
 
 CU_BOOL suite_deadlock_tests_enable(void)
 {
@@ -188,6 +189,7 @@ CU_TestInfo deadlock_tests[] = {
 	{ "gfx ring bad slow dispatch test (set amdgpu.lockup_timeout=50)", amdgpu_dispatch_hang_slow_gfx },
 	{ "compute ring bad slow dispatch test (set amdgpu.lockup_timeout=50,50)", amdgpu_dispatch_hang_slow_compute },
 	{ "gfx ring bad draw test (set amdgpu.lockup_timeout=50)", amdgpu_draw_hang_gfx },
+	{ "gfx ring slow bad draw test (set amdgpu.lockup_timeout=50)", amdgpu_draw_hang_slow_gfx },
 	CU_TEST_INFO_NULL,
 };
 
@@ -523,6 +525,22 @@ static void amdgpu_draw_hang_gfx(void)
 	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
 		amdgpu_memcpy_draw_test(device_handle, ring_id, 0);
 		amdgpu_memcpy_draw_test(device_handle, ring_id, 1);
+		amdgpu_memcpy_draw_test(device_handle, ring_id, 0);
+	}
+}
+
+static void amdgpu_draw_hang_slow_gfx(void)
+{
+	struct drm_amdgpu_info_hw_ip info;
+	uint32_t ring_id;
+	int r;
+
+	r = amdgpu_query_hw_ip_info(device_handle, AMDGPU_HW_IP_GFX, 0, &info);
+	CU_ASSERT_EQUAL(r, 0);
+
+	for (ring_id = 0; (1 << ring_id) & info.available_rings; ring_id++) {
+		amdgpu_memcpy_draw_test(device_handle, ring_id, 0);
+		amdgpu_memcpy_draw_hang_slow_test(device_handle, ring_id);
 		amdgpu_memcpy_draw_test(device_handle, ring_id, 0);
 	}
 }
