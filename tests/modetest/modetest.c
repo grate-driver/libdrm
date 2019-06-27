@@ -214,9 +214,10 @@ static void dump_encoders(struct device *dev)
 	printf("\n");
 }
 
-static void dump_mode(drmModeModeInfo *mode)
+static void dump_mode(drmModeModeInfo *mode, int index)
 {
-	printf("  %s %.2f %d %d %d %d %d %d %d %d %d",
+	printf("  #%i %s %.2f %d %d %d %d %d %d %d %d %d",
+	       index,
 	       mode->name,
 	       mode_vrefresh(mode),
 	       mode->hdisplay,
@@ -453,10 +454,10 @@ static void dump_connectors(struct device *dev)
 
 		if (connector->count_modes) {
 			printf("  modes:\n");
-			printf("\tname refresh (Hz) hdisp hss hse htot vdisp "
+			printf("\tindex name refresh (Hz) hdisp hss hse htot vdisp "
 			       "vss vse vtot)\n");
 			for (j = 0; j < connector->count_modes; j++)
-				dump_mode(&connector->modes[j]);
+				dump_mode(&connector->modes[j], j);
 		}
 
 		if (_connector->props) {
@@ -488,7 +489,7 @@ static void dump_crtcs(struct device *dev)
 		       crtc->buffer_id,
 		       crtc->x, crtc->y,
 		       crtc->width, crtc->height);
-		dump_mode(&crtc->mode);
+		dump_mode(&crtc->mode, 0);
 
 		if (_crtc->props) {
 			printf("  props:\n");
@@ -839,6 +840,16 @@ connector_find_mode(struct device *dev, uint32_t con_id, const char *mode_str,
 	if (!connector || !connector->count_modes)
 		return NULL;
 
+	/* Pick by Index */
+	if (mode_str[0] == '#') {
+		int index = atoi(mode_str + 1);
+
+		if (index >= connector->count_modes || index < 0)
+			return NULL;
+		return &connector->modes[index];
+	}
+
+	/* Pick by Name */
 	for (i = 0; i < connector->count_modes; i++) {
 		mode = &connector->modes[i];
 		if (!strcmp(mode->name, mode_str)) {
@@ -1836,7 +1847,7 @@ static void usage(char *name)
 
 	fprintf(stderr, "\n Test options:\n\n");
 	fprintf(stderr, "\t-P <plane_id>@<crtc_id>:<w>x<h>[+<x>+<y>][*<scale>][@<format>]\tset a plane\n");
-	fprintf(stderr, "\t-s <connector_id>[,<connector_id>][@<crtc_id>]:<mode>[-<vrefresh>][@<format>]\tset a mode\n");
+	fprintf(stderr, "\t-s <connector_id>[,<connector_id>][@<crtc_id>]:[#<mode index>]<mode>[-<vrefresh>][@<format>]\tset a mode\n");
 	fprintf(stderr, "\t-C\ttest hw cursor\n");
 	fprintf(stderr, "\t-v\ttest vsynced page flipping\n");
 	fprintf(stderr, "\t-w <obj_id>:<prop_name>:<value>\tset property\n");
