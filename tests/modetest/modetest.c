@@ -1464,10 +1464,120 @@ static int pipe_resolve_connectors(struct device *dev, struct pipe_arg *pipe)
 	return 0;
 }
 
+static int pipe_attempt_connector(struct device *dev, drmModeConnector *con,
+		struct pipe_arg *pipe)
+{
+	char *con_str;
+	int i;
+
+	con_str = calloc(8, sizeof(char));
+	if (!con_str)
+		return -1;
+
+	sprintf(con_str, "%d", con->connector_id);
+	strcpy(pipe->format_str, "XR24");
+	pipe->fourcc = util_format_fourcc(pipe->format_str);
+	pipe->num_cons = 1;
+	pipe->con_ids = calloc(1, sizeof(*pipe->con_ids));
+	pipe->cons = calloc(1, sizeof(*pipe->cons));
+
+	if (!pipe->con_ids || !pipe->cons)
+		goto free_con_str;
+
+	pipe->con_ids[0] = con->connector_id;
+	pipe->cons[0] = (const char*)con_str;
+
+	pipe->crtc = pipe_find_crtc(dev, pipe);
+	if (!pipe->crtc)
+		goto free_all;
+
+	pipe->crtc_id = pipe->crtc->crtc->crtc_id;
+
+	/* Return the first mode if no preferred. */
+	pipe->mode = &con->modes[0];
+
+	for (i = 0; i < con->count_modes; i++) {
+		drmModeModeInfo *current_mode = &con->modes[i];
+
+		if (current_mode->type & DRM_MODE_TYPE_PREFERRED) {
+			pipe->mode = current_mode;
+			break;
+		}
+	}
+
+	sprintf(pipe->mode_str, "%dx%d", pipe->mode->hdisplay, pipe->mode->vdisplay);
+
+	return 0;
+
+free_all:
+	free(pipe->cons);
+	free(pipe->con_ids);
+free_con_str:
+	free(con_str);
+	return -1;
+}
+
+static int pipe_find_preferred(struct device *dev, struct pipe_arg **out_pipes)
+{
+	struct pipe_arg *pipes;
+	struct resources *res = dev->resources;
+	drmModeConnector *con = NULL;
+	int i, connected = 0, attempted = 0;
+
+	for (i = 0; i < res->count_connectors; i++) {
+		con = res->connectors[i].connector;
+		if (!con || con->connection != DRM_MODE_CONNECTED)
+			continue;
+		connected++;
+	}
+	if (!connected) {
+		printf("no connected connector!\n");
+		return 0;
+	}
+
+	pipes = calloc(connected, sizeof(struct pipe_arg));
+	if (!pipes)
+		return 0;
+
+	for (i = 0; i < res->count_connectors && attempted < connected; i++) {
+		con = res->connectors[i].connector;
+		if (!con || con->connection != DRM_MODE_CONNECTED)
+			continue;
+
+		if (pipe_attempt_connector(dev, con, &pipes[attempted]) < 0) {
+			printf("failed fetching preferred mode for connector\n");
+			continue;
+		}
+		attempted++;
+	}
+
+	*out_pipes = pipes;
+	return attempted;
+}
+
+static struct plane *get_primary_plane_by_crtc(struct device *dev, struct crtc *crtc)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->resources->count_planes; i++) {
+		struct plane *plane = &dev->resources->planes[i];
+		drmModePlane *ovr = plane->plane;
+		if (!ovr)
+			continue;
+
+		// XXX: add is_primary_plane and (?) format checks
+
+		if (ovr->possible_crtcs & get_crtc_mask(dev, crtc))
+            return plane;
+	}
+	return NULL;
+}
+
 static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int count)
 {
 	unsigned int i, j;
 	int ret, x = 0;
+	int preferred = count == 0;
 
 	for (i = 0; i < count; i++) {
 		struct pipe_arg *pipe = &pipes[i];
@@ -1480,6 +1590,16 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 		if (ret < 0)
 			continue;
 	}
+	if (preferred) {
+		struct pipe_arg *pipe_args;
+
+		count = pipe_find_preferred(dev, &pipe_args);
+		if (!count) {
+			fprintf(stderr, "can't find any preferred connector/mode.\n");
+			return;
+		}
+		pipes = pipe_args;
+	}
 
 	if (!dev->use_atomic) {
 		for (i = 0; i < count; i++) {
@@ -1488,9 +1608,19 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 			if (pipe->mode == NULL)
 				continue;
 
-			dev->mode.width += pipe->mode->hdisplay;
-			if (dev->mode.height < pipe->mode->vdisplay)
-				dev->mode.height = pipe->mode->vdisplay;
+			if (!preferred) {
+				dev->mode.width += pipe->mode->hdisplay;
+				if (dev->mode.height < pipe->mode->vdisplay)
+					dev->mode.height = pipe->mode->vdisplay;
+			} else {
+				/* XXX: Use a clone mode, more like atomic. We could do per
+				 * connector bo/fb, so we don't have the stretched image.
+				 */
+				if (dev->mode.width < pipe->mode->hdisplay)
+					dev->mode.width = pipe->mode->hdisplay;
+				if (dev->mode.height < pipe->mode->vdisplay)
+					dev->mode.height = pipe->mode->vdisplay;
+			}
 		}
 
 		if (bo_fb_create(dev->fd, pipes[0].fourcc, dev->mode.width, dev->mode.height,
@@ -1522,7 +1652,8 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 			/* XXX: Actually check if this is needed */
 			drmModeDirtyFB(dev->fd, dev->mode.fb_id, NULL, 0);
 
-			x += pipe->mode->hdisplay;
+			if (!preferred)
+				x += pipe->mode->hdisplay;
 
 			if (ret) {
 				fprintf(stderr, "failed to set mode: %s\n", strerror(errno));
@@ -1534,6 +1665,22 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 			drmModeCreatePropertyBlob(dev->fd, pipe->mode, sizeof(*pipe->mode), &blob_id);
 			add_property(dev, pipe->crtc_id, "MODE_ID", blob_id);
 			add_property(dev, pipe->crtc_id, "ACTIVE", 1);
+
+			/* By default atomic modeset does not set a primary plane, shrug */
+			if (preferred) {
+				struct plane *plane = get_primary_plane_by_crtc(dev, pipe->crtc);
+				struct plane_arg plane_args = {
+					.plane_id = plane->plane->plane_id,
+					.crtc_id = pipe->crtc_id,
+					.w = pipe->mode->hdisplay,
+					.h = pipe->mode->vdisplay,
+					.scale = 1.0,
+					.format_str = "XR24",
+					.fourcc = util_format_fourcc(pipe->format_str),
+				};
+
+				atomic_set_planes(dev, &plane_args, 1, false);
+			}
 		}
 	}
 }
@@ -1858,7 +2005,7 @@ static void parse_fill_patterns(char *arg)
 
 static void usage(char *name)
 {
-	fprintf(stderr, "usage: %s [-acDdefMPpsCvw]\n", name);
+	fprintf(stderr, "usage: %s [-acDdefMPpsCvrw]\n", name);
 
 	fprintf(stderr, "\n Query options:\n\n");
 	fprintf(stderr, "\t-c\tlist connectors\n");
@@ -1871,6 +2018,7 @@ static void usage(char *name)
 	fprintf(stderr, "\t-s <connector_id>[,<connector_id>][@<crtc_id>]:[#<mode index>]<mode>[-<vrefresh>][@<format>]\tset a mode\n");
 	fprintf(stderr, "\t-C\ttest hw cursor\n");
 	fprintf(stderr, "\t-v\ttest vsynced page flipping\n");
+	fprintf(stderr, "\t-r\tset the preferred mode for all connectors\n");
 	fprintf(stderr, "\t-w <obj_id>:<prop_name>:<value>\tset property\n");
 	fprintf(stderr, "\t-a \tuse atomic API\n");
 	fprintf(stderr, "\t-F pattern1,pattern2\tspecify fill patterns\n");
@@ -1884,7 +2032,7 @@ static void usage(char *name)
 	exit(0);
 }
 
-static char optstr[] = "acdD:efF:M:P:ps:Cvw:";
+static char optstr[] = "acdD:efF:M:P:ps:Cvrw:";
 
 int main(int argc, char **argv)
 {
@@ -1895,6 +2043,7 @@ int main(int argc, char **argv)
 	int drop_master = 0;
 	int test_vsync = 0;
 	int test_cursor = 0;
+	int set_preferred = 0;
 	int use_atomic = 0;
 	char *device = NULL;
 	char *module = NULL;
@@ -1982,6 +2131,9 @@ int main(int argc, char **argv)
 		case 'v':
 			test_vsync = 1;
 			break;
+		case 'r':
+			set_preferred = 1;
+			break;
 		case 'w':
 			prop_args = realloc(prop_args,
 					   (prop_count + 1) * sizeof *prop_args);
@@ -2008,6 +2160,15 @@ int main(int argc, char **argv)
 
 	if (test_vsync && !count) {
 		fprintf(stderr, "page flipping requires at least one -s option.\n");
+		return -1;
+	}
+	if (set_preferred && count) {
+		fprintf(stderr, "cannot use -r (preferred) when -s (mode) is set\n");
+		return -1;
+	}
+
+	if (set_preferred && plane_count) {
+		fprintf(stderr, "cannot use -r (preferred) when -P (plane) is set\n");
 		return -1;
 	}
 
@@ -2046,7 +2207,7 @@ int main(int argc, char **argv)
 	if (dev.use_atomic) {
 		dev.req = drmModeAtomicAlloc();
 
-		if (count && plane_count) {
+		if (set_preferred || (count && plane_count)) {
 			uint64_t cap = 0;
 
 			ret = drmGetCap(dev.fd, DRM_CAP_DUMB_BUFFER, &cap);
@@ -2055,7 +2216,7 @@ int main(int argc, char **argv)
 				return 1;
 			}
 
-			if (count)
+			if (set_preferred || count)
 				set_mode(&dev, pipe_args, count);
 
 			if (plane_count)
@@ -2078,6 +2239,7 @@ int main(int argc, char **argv)
 			drmModeAtomicFree(dev.req);
 			dev.req = drmModeAtomicAlloc();
 
+			/* XXX: properly teardown the preferred mode/plane state */
 			if (plane_count)
 				atomic_clear_planes(&dev, plane_args, plane_count);
 
@@ -2094,7 +2256,7 @@ int main(int argc, char **argv)
 
 		drmModeAtomicFree(dev.req);
 	} else {
-		if (count || plane_count) {
+		if (set_preferred || count || plane_count) {
 			uint64_t cap = 0;
 
 			ret = drmGetCap(dev.fd, DRM_CAP_DUMB_BUFFER, &cap);
@@ -2103,7 +2265,7 @@ int main(int argc, char **argv)
 				return 1;
 			}
 
-			if (count)
+			if (set_preferred || count)
 				set_mode(&dev, pipe_args, count);
 
 			if (plane_count)
@@ -2126,7 +2288,7 @@ int main(int argc, char **argv)
 			if (plane_count)
 				clear_planes(&dev, plane_args, plane_count);
 
-			if (count)
+			if (set_preferred || count)
 				clear_mode(&dev);
 		}
 	}
