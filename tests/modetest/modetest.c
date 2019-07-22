@@ -1721,6 +1721,8 @@ static int parse_connector(struct pipe_arg *pipe, const char *arg)
 		return -1;
 
 	/* Parse the remaining parameters. */
+	if (!endp)
+		return -1;
 	if (*endp == '@') {
 		arg = endp + 1;
 		pipe->crtc_id = strtoul(arg, &endp, 10);
