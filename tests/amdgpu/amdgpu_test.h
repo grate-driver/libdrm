@@ -423,4 +423,17 @@ static inline CU_ErrorCode amdgpu_set_test_active(const char *suite_name,
 	return r;
 }
 
+static inline bool asic_is_arcturus(uint32_t asic_id)
+{
+	switch(asic_id) {
+	/* Arcturus asic DID */
+	case 0x738C:
+	case 0x7388:
+	case 0x738E:
+		return true;
+	default:
+		return false;
+	}
+}
+
 #endif  /* #ifdef _AMDGPU_TEST_H_ */

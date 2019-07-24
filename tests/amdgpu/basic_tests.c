@@ -587,19 +587,6 @@ int amdgpu_bo_alloc_and_map_raw(amdgpu_device_handle dev, unsigned size,
 
 
 
-static bool asic_is_arcturus(uint32_t asic_id)
-{
-	switch(asic_id) {
-	/* asic DID */
-	case 0x738C:
-	case 0x7388:
-	case 0x738E:
-		return true;
-	default:
-		return false;
-	}
-}
-
 CU_BOOL suite_basic_tests_enable(void)
 {
 	uint32_t asic_id;
