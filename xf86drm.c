@@ -4252,6 +4252,21 @@ drm_public int drmSyncobjQuery(int fd, uint32_t *handles, uint64_t *points,
     return 0;
 }
 
+drm_public int drmSyncobjQuery2(int fd, uint32_t *handles, uint64_t *points,
+				uint32_t handle_count, uint32_t flags)
+{
+    struct drm_syncobj_timeline_array args;
+
+    memclear(args);
+    args.handles = (uintptr_t)handles;
+    args.points = (uintptr_t)points;
+    args.count_handles = handle_count;
+    args.flags = flags;
+
+    return drmIoctl(fd, DRM_IOCTL_SYNCOBJ_QUERY, &args);
+}
+
+
 drm_public int drmSyncobjTransfer(int fd,
 				  uint32_t dst_handle, uint64_t dst_point,
 				  uint32_t src_handle, uint64_t src_point,

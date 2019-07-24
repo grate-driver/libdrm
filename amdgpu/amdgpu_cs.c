@@ -740,6 +740,16 @@ drm_public int amdgpu_cs_syncobj_query(amdgpu_device_handle dev,
 	return drmSyncobjQuery(dev->fd, handles, points, num_handles);
 }
 
+drm_public int amdgpu_cs_syncobj_query2(amdgpu_device_handle dev,
+					uint32_t *handles, uint64_t *points,
+					unsigned num_handles, uint32_t flags)
+{
+	if (!dev)
+		return -EINVAL;
+
+	return drmSyncobjQuery2(dev->fd, handles, points, num_handles, flags);
+}
+
 drm_public int amdgpu_cs_export_syncobj(amdgpu_device_handle dev,
 					uint32_t handle,
 					int *shared_fd)

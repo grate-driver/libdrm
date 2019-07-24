@@ -57,6 +57,7 @@ amdgpu_cs_syncobj_export_sync_file2
 amdgpu_cs_syncobj_import_sync_file
 amdgpu_cs_syncobj_import_sync_file2
 amdgpu_cs_syncobj_query
+amdgpu_cs_syncobj_query2
 amdgpu_cs_syncobj_reset
 amdgpu_cs_syncobj_signal
 amdgpu_cs_syncobj_timeline_signal
