@@ -124,6 +124,7 @@ static void amdgpu_draw_hang_slow_gfx(void);
 CU_BOOL suite_deadlock_tests_enable(void)
 {
 	CU_BOOL enable = CU_TRUE;
+	uint32_t asic_id;
 
 	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
 					     &minor_version, &device_handle))
@@ -138,6 +139,15 @@ CU_BOOL suite_deadlock_tests_enable(void)
 	    device_handle->info.family_id != AMDGPU_FAMILY_CI) {
 		printf("\n\nGPU reset is not enabled for the ASIC, deadlock suite disabled\n");
 		enable = CU_FALSE;
+	}
+
+	asic_id = device_handle->info.asic_id;
+	if (asic_is_arcturus(asic_id)) {
+		if (amdgpu_set_test_active("Deadlock Tests",
+					"gfx ring block test (set amdgpu.lockup_timeout=50)",
+					CU_FALSE))
+			fprintf(stderr, "test deactivation failed - %s\n",
+				CU_get_error_msg());
 	}
 
 	if (device_handle->info.family_id >= AMDGPU_FAMILY_AI)
