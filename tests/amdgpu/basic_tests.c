@@ -86,7 +86,7 @@ CU_TestInfo basic_tests[] = {
 	{ "GPU reset Test", amdgpu_gpu_reset_test },
 	CU_TEST_INFO_NULL,
 };
-#define BUFFER_SIZE (8 * 1024)
+#define BUFFER_SIZE (MAX2(8 * 1024, getpagesize()))
 #define SDMA_PKT_HEADER_op_offset 0
 #define SDMA_PKT_HEADER_op_mask   0x000000FF
 #define SDMA_PKT_HEADER_op_shift  0
