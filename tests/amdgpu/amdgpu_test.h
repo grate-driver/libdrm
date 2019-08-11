@@ -248,6 +248,27 @@ void amdgpu_memcpy_draw_test(amdgpu_device_handle device_handle, uint32_t ring,
 void amdgpu_memcpy_draw_hang_slow_test(amdgpu_device_handle device_handle, uint32_t ring);
 
 /**
+ * Initialize security test suite
+ */
+int suite_security_tests_init();
+
+/**
+ * Deinitialize security test suite
+ */
+int suite_security_tests_clean();
+
+/**
+ * Decide if the suite is enabled by default or not.
+ */
+CU_BOOL suite_security_tests_enable(void);
+
+/**
+ * Tests in security test suite
+ */
+extern CU_TestInfo security_tests[];
+
+
+/**
  * Helper functions
  */
 static inline amdgpu_bo_handle gpu_mem_alloc(
