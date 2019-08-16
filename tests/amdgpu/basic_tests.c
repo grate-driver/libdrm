@@ -1270,12 +1270,14 @@ static void amdgpu_command_submission_compute(void)
  * pm4_src, resources, ib_info, and ibs_request
  * submit command stream described in ibs_request and wait for this IB accomplished
  */
-static void amdgpu_test_exec_cs_helper(amdgpu_context_handle context_handle,
-				       unsigned ip_type,
-				       int instance, int pm4_dw, uint32_t *pm4_src,
-				       int res_cnt, amdgpu_bo_handle *resources,
-				       struct amdgpu_cs_ib_info *ib_info,
-				       struct amdgpu_cs_request *ibs_request)
+static void
+amdgpu_test_exec_cs_helper_raw(amdgpu_device_handle device_handle,
+			       amdgpu_context_handle context_handle,
+			       unsigned ip_type, int instance, int pm4_dw,
+			       uint32_t *pm4_src, int res_cnt,
+			       amdgpu_bo_handle *resources,
+			       struct amdgpu_cs_ib_info *ib_info,
+			       struct amdgpu_cs_request *ibs_request)
 {
 	int r;
 	uint32_t expired;
@@ -1348,8 +1350,24 @@ static void amdgpu_test_exec_cs_helper(amdgpu_context_handle context_handle,
 	CU_ASSERT_EQUAL(r, 0);
 }
 
-void amdgpu_command_submission_write_linear_helper_with_secure(unsigned ip_type,
-							       bool secure)
+static void
+amdgpu_test_exec_cs_helper(amdgpu_context_handle context_handle,
+			   unsigned ip_type, int instance, int pm4_dw,
+			   uint32_t *pm4_src, int res_cnt,
+			   amdgpu_bo_handle *resources,
+			   struct amdgpu_cs_ib_info *ib_info,
+			   struct amdgpu_cs_request *ibs_request)
+{
+	amdgpu_test_exec_cs_helper_raw(device_handle, context_handle,
+				       ip_type, instance, pm4_dw, pm4_src,
+				       res_cnt, resources, ib_info,
+				       ibs_request);
+}
+
+void
+amdgpu_command_submission_write_linear_helper_with_secure(amdgpu_device_handle
+							  device, unsigned
+							  ip_type, bool secure)
 {
 	const int sdma_write_length = 128;
 	const int pm4_dw = 256;
@@ -1375,13 +1393,13 @@ void amdgpu_command_submission_write_linear_helper_with_secure(unsigned ip_type,
 	ibs_request = calloc(1, sizeof(*ibs_request));
 	CU_ASSERT_NOT_EQUAL(ibs_request, NULL);
 
-	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &hw_ip_info);
+	r = amdgpu_query_hw_ip_info(device, ip_type, 0, &hw_ip_info);
 	CU_ASSERT_EQUAL(r, 0);
 
 	for (i = 0; secure && (i < 2); i++)
 		gtt_flags[i] |= AMDGPU_GEM_CREATE_ENCRYPTED;
 
-	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+	r = amdgpu_cs_ctx_create(device, &context_handle);
 
 	CU_ASSERT_EQUAL(r, 0);
 
@@ -1393,7 +1411,7 @@ void amdgpu_command_submission_write_linear_helper_with_secure(unsigned ip_type,
 		loop = 0;
 		while(loop < 2) {
 			/* allocate UC bo for sDMA use */
-			r = amdgpu_bo_alloc_and_map(device_handle,
+			r = amdgpu_bo_alloc_and_map(device,
 						    sdma_write_length * sizeof(uint32_t),
 						    4096, AMDGPU_GEM_DOMAIN_GTT,
 						    gtt_flags[loop], &bo, (void**)&bo_cpu,
@@ -1432,11 +1450,10 @@ void amdgpu_command_submission_write_linear_helper_with_secure(unsigned ip_type,
 					pm4[i++] = 0xdeadbeaf;
 			}
 
-			amdgpu_test_exec_cs_helper(context_handle,
-						   ip_type, ring_id,
-						   i, pm4,
-						   1, resources,
-						   ib_info, ibs_request);
+			amdgpu_test_exec_cs_helper_raw(device, context_handle,
+						       ip_type, ring_id, i, pm4,
+						       1, resources, ib_info,
+						       ibs_request);
 
 			/* verify if SDMA test result meets with expected */
 			i = 0;
@@ -1463,7 +1480,8 @@ void amdgpu_command_submission_write_linear_helper_with_secure(unsigned ip_type,
 
 static void amdgpu_command_submission_write_linear_helper(unsigned ip_type)
 {
-	amdgpu_command_submission_write_linear_helper_with_secure(ip_type,
+	amdgpu_command_submission_write_linear_helper_with_secure(device_handle,
+								  ip_type,
 								  false);
 }
 
