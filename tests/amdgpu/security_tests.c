@@ -102,4 +102,14 @@ static void amdgpu_security_alloc_buf_test(void)
 
 	r = gpu_mem_free(bo, va_handle, bo_mc, 4096);
 	CU_ASSERT_EQUAL(r, 0);
+
+	/* Test secure buffer allocation in invisible VRAM */
+	bo = gpu_mem_alloc(device_handle, 4096, 4096,
+			   AMDGPU_GEM_DOMAIN_GTT,
+			   AMDGPU_GEM_CREATE_ENCRYPTED |
+			   AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
+			   &bo_mc, &va_handle);
+
+	r = gpu_mem_free(bo, va_handle, bo_mc, 4096);
+	CU_ASSERT_EQUAL(r, 0);
 }
