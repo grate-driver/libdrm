@@ -70,7 +70,7 @@ static void amdgpu_test_exec_cs_helper(amdgpu_context_handle context_handle,
 				       int res_cnt, amdgpu_bo_handle *resources,
 				       struct amdgpu_cs_ib_info *ib_info,
 				       struct amdgpu_cs_request *ibs_request);
- 
+
 CU_TestInfo basic_tests[] = {
 	{ "Query Info Test",  amdgpu_query_info_test },
 	{ "Userptr Test",  amdgpu_userptr_test },
@@ -1348,7 +1348,8 @@ static void amdgpu_test_exec_cs_helper(amdgpu_context_handle context_handle,
 	CU_ASSERT_EQUAL(r, 0);
 }
 
-static void amdgpu_command_submission_write_linear_helper(unsigned ip_type)
+void amdgpu_command_submission_write_linear_helper_with_secure(unsigned ip_type,
+							       bool secure)
 {
 	const int sdma_write_length = 128;
 	const int pm4_dw = 256;
@@ -1377,7 +1378,11 @@ static void amdgpu_command_submission_write_linear_helper(unsigned ip_type)
 	r = amdgpu_query_hw_ip_info(device_handle, ip_type, 0, &hw_ip_info);
 	CU_ASSERT_EQUAL(r, 0);
 
+	for (i = 0; secure && (i < 2); i++)
+		gtt_flags[i] |= AMDGPU_GEM_CREATE_ENCRYPTED;
+
 	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
+
 	CU_ASSERT_EQUAL(r, 0);
 
 	/* prepare resource */
@@ -1454,6 +1459,12 @@ static void amdgpu_command_submission_write_linear_helper(unsigned ip_type)
 	/* end of test */
 	r = amdgpu_cs_ctx_free(context_handle);
 	CU_ASSERT_EQUAL(r, 0);
+}
+
+static void amdgpu_command_submission_write_linear_helper(unsigned ip_type)
+{
+	amdgpu_command_submission_write_linear_helper_with_secure(ip_type,
+								  false);
 }
 
 static void amdgpu_command_submission_sdma_write_linear(void)

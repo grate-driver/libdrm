@@ -267,6 +267,9 @@ CU_BOOL suite_security_tests_enable(void);
  */
 extern CU_TestInfo security_tests[];
 
+extern void
+amdgpu_command_submission_write_linear_helper_with_secure(unsigned ip_type,
+							  bool secure);
 
 /**
  * Helper functions
@@ -456,5 +459,6 @@ static inline bool asic_is_arcturus(uint32_t asic_id)
 		return false;
 	}
 }
+
 
 #endif  /* #ifdef _AMDGPU_TEST_H_ */
