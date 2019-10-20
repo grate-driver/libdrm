@@ -4,6 +4,11 @@ set -o xtrace
 
 export DEBIAN_FRONTEND=noninteractive
 
+CROSS_ARCHITECTURES=(i386 armhf arm64)
+for arch in ${CROSS_ARCHITECTURES[@]}; do
+  dpkg --add-architecture $arch
+done
+
 apt-get install -y \
   ca-certificates
 
@@ -29,6 +34,7 @@ apt-get install -y --no-remove \
   libcunit1-dev \
   libpciaccess-dev \
   libxslt1-dev \
+  meson \
   ninja-build \
   pkg-config \
   python3 \
@@ -37,6 +43,24 @@ apt-get install -y --no-remove \
   python3-setuptools \
   valgrind \
   xsltproc
+
+for arch in ${CROSS_ARCHITECTURES[@]}; do
+  cross_file=/cross_file-$arch.txt
+
+  # Cross-build libdrm deps
+  apt-get install -y --no-remove \
+    libcairo2-dev:$arch \
+    libpciaccess-dev:$arch \
+    crossbuild-essential-$arch
+
+  # Generate cross build files for Meson
+  /usr/share/meson/debcrossgen --arch $arch -o $cross_file
+
+  # Work around a bug in debcrossgen that should be fixed in the next release
+  if [ $arch = i386 ]; then
+    sed -i "s|cpu_family = 'i686'|cpu_family = 'x86'|g" $cross_file
+  fi
+done
 
 
 # Test that the oldest Meson version we claim to support is still supported

@@ -14,7 +14,7 @@
 # repository's registry will be used there as well.
 variables:
   UPSTREAM_REPO: mesa/drm
-  DEBIAN_TAG: "2019-10-20"
+  DEBIAN_TAG: "2019-11-12"
   DEBIAN_VERSION: buster-slim
   DEBIAN_IMAGE: "$CI_REGISTRY_IMAGE/debian/$DEBIAN_VERSION:$DEBIAN_TAG"
 
@@ -71,9 +71,10 @@ debian:
         -D radeon=true
         -D tegra=true
         -D udev=true
-        -D valgrind=true
+        -D valgrind=auto
         -D vc4=true
         -D vmwgfx=true
+        ${CROSS+--cross /cross_file-$CROSS.txt}
     - ninja -C _build
     - ninja -C _build test
     - DESTDIR=$PWD/install ninja -C _build install
