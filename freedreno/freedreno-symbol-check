@@ -43,7 +43,6 @@ fd_pipe_wait
 fd_pipe_wait_timeout
 fd_ringbuffer_cmd_count
 fd_ringbuffer_del
-fd_ringbuffer_emit_reloc_ring
 fd_ringbuffer_emit_reloc_ring_full
 fd_ringbuffer_flush
 fd_ringbuffer_grow
