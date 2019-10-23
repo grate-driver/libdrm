@@ -1,17 +1,3 @@
-#!/bin/sh
-
-set -u
-
-# The following symbols (past the first five) are taken from the public headers.
-# A list of the latter should be available Makefile.sources/LIBDRM_NOUVEAU_H_FILES
-
-FUNCS=$($NM -D --format=bsd --defined-only ${1-.libs/libdrm_nouveau.so} | awk '{print $3}'| while read func; do
-( grep -q "^$func$" || echo $func )  <<EOF
-__bss_start
-_edata
-_end
-_fini
-_init
 nouveau_bo_map
 nouveau_bo_name_get
 nouveau_bo_name_ref
@@ -53,8 +39,3 @@ nouveau_pushbuf_reloc
 nouveau_pushbuf_space
 nouveau_pushbuf_validate
 nouveau_setparam
-EOF
-done)
-
-test ! -n "$FUNCS" || echo $FUNCS
-test ! -n "$FUNCS"
