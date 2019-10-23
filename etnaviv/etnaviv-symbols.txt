@@ -1,17 +1,3 @@
-#!/bin/sh
-
-set -u
-
-# The following symbols (past the first five) are taken from the public headers.
-# A list of the latter should be available Makefile.sources/LIBDRM_ETNAVIV_H_FILES
-
-FUNCS=$(nm -D --format=bsd --defined-only ${1-.libs/libdrm_etnaviv.so} | awk '{print $3}'| while read func; do
-( grep -q "^$func$" || echo $func )  <<EOF
-__bss_start
-_edata
-_end
-_fini
-_init
 etna_device_new
 etna_device_new_dup
 etna_device_ref
@@ -48,8 +34,3 @@ etna_perfmon_create
 etna_perfmon_del
 etna_perfmon_get_dom_by_name
 etna_perfmon_get_sig_by_name
-EOF
-done)
-
-test ! -n "$FUNCS" || echo $FUNCS
-test ! -n "$FUNCS"
