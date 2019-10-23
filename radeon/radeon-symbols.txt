@@ -1,17 +1,3 @@
-#!/bin/sh
-
-set -u
-
-# The following symbols (past the first five) are taken from the public headers.
-# A list of the latter should be available Makefile.sources/LIBDRM_RADEON_H_FILES
-
-FUNCS=$($NM -D --format=bsd --defined-only ${1-.libs/libdrm_radeon.so} | awk '{print $3}'| while read func; do
-( grep -q "^$func$" || echo $func )  <<EOF
-__bss_start
-_edata
-_end
-_fini
-_init
 radeon_bo_debug
 radeon_bo_get_handle
 radeon_bo_get_src_domain
@@ -56,8 +42,3 @@ radeon_surface_best
 radeon_surface_init
 radeon_surface_manager_free
 radeon_surface_manager_new
-EOF
-done)
-
-test ! -n "$FUNCS" || echo $FUNCS
-test ! -n "$FUNCS"
