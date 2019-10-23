@@ -1,17 +1,3 @@
-#!/bin/sh
-
-set -u
-
-# The following symbols (past the first five) are taken from the public headers.
-# A list of the latter should be available Makefile.sources/LIBDRM_INTEL_H_FILES
-
-FUNCS=$($NM -D --format=bsd --defined-only ${1-.libs/libdrm_intel.so} | awk '{print $3}' | while read func; do
-( grep -q "^$func$" || echo $func )  <<EOF
-__bss_start
-_edata
-_end
-_fini
-_init
 drm_intel_bo_alloc
 drm_intel_bo_alloc_for_render
 drm_intel_bo_alloc_tiled
@@ -95,8 +81,3 @@ drm_intel_get_pooled_eu
 drm_intel_get_reset_stats
 drm_intel_get_subslice_total
 drm_intel_reg_read
-EOF
-done)
-
-test ! -n "$FUNCS" || echo $FUNCS
-test ! -n "$FUNCS"
