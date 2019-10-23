@@ -44,6 +44,9 @@ dep_threads = dependency('threads')
 
 cc = meson.get_compiler('c')
 
+symbols_check = find_program('symbols-check.py')
+prog_nm = find_program('nm')
+
 # Check for atomics
 intel_atomics = false
 lib_atomics = false
