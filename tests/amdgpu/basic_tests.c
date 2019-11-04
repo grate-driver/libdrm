@@ -2869,7 +2869,7 @@ void amdgpu_memset_draw(amdgpu_device_handle device_handle,
 	resources[1] = bo_shader_ps;
 	resources[2] = bo_shader_vs;
 	resources[3] = bo_cmd;
-	r = amdgpu_bo_list_create(device_handle, 3, resources, NULL, &bo_list);
+	r = amdgpu_bo_list_create(device_handle, 4, resources, NULL, &bo_list);
 	CU_ASSERT_EQUAL(r, 0);
 
 	ib_info.ib_mc_address = mc_address_cmd;
