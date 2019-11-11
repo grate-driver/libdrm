@@ -305,6 +305,16 @@ libdrm = shared_library(
   install : true,
 )
 
+test(
+  'core-symbols-check',
+  symbols_check,
+  args : [
+    '--lib', libdrm,
+    '--symbols-file', files('core-symbols.txt'),
+    '--nm', prog_nm.path(),
+  ],
+)
+
 ext_libdrm = declare_dependency(
   link_with : libdrm,
   include_directories : [inc_root, inc_drm],
