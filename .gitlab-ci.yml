@@ -17,17 +17,11 @@ variables:
   DEBIAN_TAG: "2019-10-20"
   DEBIAN_VERSION: buster-slim
   DEBIAN_IMAGE: "$CI_REGISTRY_IMAGE/debian/$DEBIAN_VERSION:$DEBIAN_TAG"
-  ARCH_TAG: "2019-10-20"
-  ARCH_VERSION: rolling
-  ARCH_IMAGE: "$CI_REGISTRY_IMAGE/archlinux/$ARCH_VERSION:$ARCH_TAG"
 
 include:
   - project: 'wayland/ci-templates'
     ref: 1f7f57c64ff4ebbf7292e3b7a13600518b8cb24c
     file: '/templates/debian.yml'
-  - project: 'wayland/ci-templates'
-    ref: 1f7f57c64ff4ebbf7292e3b7a13600518b8cb24c
-    file: '/templates/arch.yml'
 
 stages:
   - containers
@@ -36,6 +30,8 @@ stages:
 
 # When & how to run the CI
 .ci-run-policy:
+  except:
+    - schedules
   retry:
     max: 2
     when:
@@ -52,21 +48,11 @@ debian:
     GIT_STRATEGY: none # no need to pull the whole tree for rebuilding the image
     DEBIAN_EXEC: 'bash .gitlab-ci/debian-install.sh'
 
-arch:
-  stage: containers
-  extends:
-    - .ci-run-policy
-    - .arch@container-ifnot-exists
-  variables:
-    GIT_STRATEGY: none # no need to pull the whole tree for rebuilding the image
-    ARCH_EXEC: 'bash .gitlab-ci/arch-install.sh'
-
 
 # BUILD
 
 .meson-build:
   stage: build
-  extends: .ci-run-policy
   variables:
     GIT_DEPTH: 10
   script:
@@ -96,14 +82,29 @@ arch:
     paths:
       - _build/meson-logs/*
 
-meson-debian:
-  extends: .meson-build
+meson-x86_64:
+  extends:
+    - .ci-run-policy
+    - .meson-build
   image: $DEBIAN_IMAGE
   needs:
     - debian
 
-meson-arch:
+meson-arch-daily:
+  rules:
+    - if: '$SCHEDULE == "arch-daily"'
+      when: on_success
+    - when: never
+  image: archlinux/base
+  before_script:
+    - pacman -Syu --noconfirm --needed
+        base-devel
+        cairo
+        cunit
+        docbook-xsl
+        libatomic_ops
+        libpciaccess
+        libxslt
+        meson
+        valgrind
   extends: .meson-build
-  image: $ARCH_IMAGE
-  needs:
-    - arch
