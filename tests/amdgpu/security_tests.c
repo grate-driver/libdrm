@@ -32,6 +32,7 @@ static uint32_t major_version;
 static uint32_t minor_version;
 
 static void amdgpu_security_alloc_buf_test(void);
+static void amdgpu_security_gfx_submission_test(void);
 
 CU_BOOL suite_security_tests_enable(void)
 {
@@ -75,6 +76,7 @@ int suite_security_tests_clean(void)
 
 CU_TestInfo security_tests[] = {
 	{ "allocate secure buffer test", amdgpu_security_alloc_buf_test },
+	{ "graphics secure command submission", amdgpu_security_gfx_submission_test },
 	CU_TEST_INFO_NULL,
 };
 
@@ -112,4 +114,11 @@ static void amdgpu_security_alloc_buf_test(void)
 
 	r = gpu_mem_free(bo, va_handle, bo_mc, 4096);
 	CU_ASSERT_EQUAL(r, 0);
+}
+
+static void amdgpu_security_gfx_submission_test(void)
+{
+	amdgpu_command_submission_write_linear_helper_with_secure(device_handle,
+								  AMDGPU_HW_IP_GFX,
+								  true);
 }
