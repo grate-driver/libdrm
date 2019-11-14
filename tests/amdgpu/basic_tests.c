@@ -158,6 +158,20 @@ CU_TestInfo basic_tests[] = {
 		 * 2 - ce
 		 */
 
+#define	PACKET3_ATOMIC_MEM				0x1E
+#define     TC_OP_ATOMIC_CMPSWAP_RTN_32          0x00000008
+#define     ATOMIC_MEM_COMMAND(x)               ((x) << 8)
+            /* 0 - single_pass_atomic.
+             * 1 - loop_until_compare_satisfied.
+             */
+#define     ATOMIC_MEM_CACHEPOLICAY(x)          ((x) << 25)
+            /* 0 - lru.
+             * 1 - stream.
+             */
+#define     ATOMIC_MEM_ENGINESEL(x)             ((x) << 30)
+            /* 0 - micro_engine.
+			 */
+
 #define	PACKET3_DMA_DATA				0x50
 /* 1. header
  * 2. CONTROL
@@ -1460,8 +1474,33 @@ amdgpu_command_submission_write_linear_helper_with_secure(amdgpu_device_handle
 
 			/* verify if SDMA test result meets with expected */
 			i = 0;
-			while(i < sdma_write_length) {
-				CU_ASSERT_EQUAL(bo_cpu[i++], 0xdeadbeaf);
+			if (!secure) {
+				while(i < sdma_write_length) {
+					CU_ASSERT_EQUAL(bo_cpu[i++], 0xdeadbeaf);
+				}
+			} else if (ip_type == AMDGPU_HW_IP_GFX) {
+				memset((void*)pm4, 0, pm4_dw * sizeof(uint32_t));
+				pm4[i++] = PACKET3(PACKET3_ATOMIC_MEM, 7);
+				/* atomic opcode for 32b w/ RTN and ATOMIC_SWAPCMP_RTN
+				 * command, 1-loop_until_compare_satisfied.
+				 * single_pass_atomic, 0-lru
+				 * engine_sel, 0-micro_engine
+				 */
+				pm4[i++] = (TC_OP_ATOMIC_CMPSWAP_RTN_32 |
+							ATOMIC_MEM_COMMAND(1) |
+							ATOMIC_MEM_CACHEPOLICAY(0) |
+							ATOMIC_MEM_ENGINESEL(0));
+				pm4[i++] = 0xfffffffc & bo_mc;
+				pm4[i++] = (0xffffffff00000000 & bo_mc) >> 32;
+				pm4[i++] = 0x12345678;
+				pm4[i++] = 0x0;
+				pm4[i++] = 0xdeadbeaf;
+				pm4[i++] = 0x0;
+				pm4[i++] = 0x100;
+				amdgpu_test_exec_cs_helper_raw(device, context_handle,
+							ip_type, ring_id, i, pm4,
+							1, resources, ib_info,
+							ibs_request, true);
 			}
 
 			r = amdgpu_bo_unmap_and_free(bo, va_handle, bo_mc,
