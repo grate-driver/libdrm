@@ -1277,7 +1277,8 @@ amdgpu_test_exec_cs_helper_raw(amdgpu_device_handle device_handle,
 			       uint32_t *pm4_src, int res_cnt,
 			       amdgpu_bo_handle *resources,
 			       struct amdgpu_cs_ib_info *ib_info,
-			       struct amdgpu_cs_request *ibs_request)
+			       struct amdgpu_cs_request *ibs_request,
+			       bool secure)
 {
 	int r;
 	uint32_t expired;
@@ -1309,6 +1310,8 @@ amdgpu_test_exec_cs_helper_raw(amdgpu_device_handle device_handle,
 
 	ib_info->ib_mc_address = ib_result_mc_address;
 	ib_info->size = pm4_dw;
+	if (secure)
+		ib_info->flags |= AMDGPU_IB_FLAGS_SECURE;
 
 	ibs_request->ip_type = ip_type;
 	ibs_request->ring = instance;
@@ -1361,7 +1364,7 @@ amdgpu_test_exec_cs_helper(amdgpu_context_handle context_handle,
 	amdgpu_test_exec_cs_helper_raw(device_handle, context_handle,
 				       ip_type, instance, pm4_dw, pm4_src,
 				       res_cnt, resources, ib_info,
-				       ibs_request);
+				       ibs_request, false);
 }
 
 void
@@ -1453,7 +1456,7 @@ amdgpu_command_submission_write_linear_helper_with_secure(amdgpu_device_handle
 			amdgpu_test_exec_cs_helper_raw(device, context_handle,
 						       ip_type, ring_id, i, pm4,
 						       1, resources, ib_info,
-						       ibs_request);
+						       ibs_request, secure);
 
 			/* verify if SDMA test result meets with expected */
 			i = 0;
