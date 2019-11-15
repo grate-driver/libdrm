@@ -54,6 +54,7 @@
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
+#include <math.h>
 
 #include "xf86drm.h"
 #include "xf86drmMode.h"
@@ -795,7 +796,7 @@ struct pipe_arg {
 	uint32_t crtc_id;
 	char mode_str[64];
 	char format_str[5];
-	unsigned int vrefresh;
+	float vrefresh;
 	unsigned int fourcc;
 	drmModeModeInfo *mode;
 	struct crtc *crtc;
@@ -822,11 +823,12 @@ struct plane_arg {
 
 static drmModeModeInfo *
 connector_find_mode(struct device *dev, uint32_t con_id, const char *mode_str,
-        const unsigned int vrefresh)
+	const float vrefresh)
 {
 	drmModeConnector *connector;
 	drmModeModeInfo *mode;
 	int i;
+	float mode_vrefresh;
 
 	connector = get_connector_by_id(dev, con_id);
 	if (!connector || !connector->count_modes)
@@ -839,9 +841,11 @@ connector_find_mode(struct device *dev, uint32_t con_id, const char *mode_str,
 			 * first mode that match with the name. Else, return the mode that match
 			 * the name and the specified vertical refresh frequency.
 			 */
+			mode_vrefresh = mode->clock * 1000.00
+					/ (mode->htotal * mode->vtotal);
 			if (vrefresh == 0)
 				return mode;
-			else if (mode->vrefresh == vrefresh)
+			else if (fabs(mode_vrefresh - vrefresh) < 0.005)
 				return mode;
 		}
 	}
@@ -1393,8 +1397,8 @@ static void atomic_set_mode(struct device *dev, struct pipe_arg *pipes, unsigned
 		if (pipe->mode == NULL)
 			continue;
 
-		printf("setting mode %s-%dHz on connectors ",
-		       pipe->mode_str, pipe->mode->vrefresh);
+		printf("setting mode %s-%.2fHz on connectors ",
+		       pipe->mode_str, pipe->vrefresh);
 		for (j = 0; j < pipe->num_cons; ++j) {
 			printf("%s, ", pipe->cons[j]);
 			add_property(dev, pipe->con_ids[j], "CRTC_ID", pipe->crtc->crtc->crtc_id);
@@ -1476,8 +1480,8 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 		if (pipe->mode == NULL)
 			continue;
 
-		printf("setting mode %s-%dHz@%s on connectors ",
-		       pipe->mode_str, pipe->mode->vrefresh, pipe->format_str);
+		printf("setting mode %s-%.2fHz@%s on connectors ",
+		       pipe->mode_str, pipe->vrefresh, pipe->format_str);
 		for (j = 0; j < pipe->num_cons; ++j)
 			printf("%s, ", pipe->cons[j]);
 		printf("crtc %d\n", pipe->crtc->crtc->crtc_id);
@@ -1713,7 +1717,7 @@ static int parse_connector(struct pipe_arg *pipe, const char *arg)
 	pipe->mode_str[len] = '\0';
 
 	if (*p == '-') {
-		pipe->vrefresh = strtoul(p + 1, &endp, 10);
+		pipe->vrefresh = strtof(p + 1, &endp);
 		p = endp;
 	}
 
