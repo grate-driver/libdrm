@@ -107,6 +107,20 @@ CU_TestInfo basic_tests[] = {
 #define	SDMA_OPCODE_COPY				  1
 #       define SDMA_COPY_SUB_OPCODE_LINEAR                0
 
+#define	SDMA_OPCODE_ATOMIC				  10
+#		define SDMA_ATOMIC_LOOP(x)               ((x) << 0)
+        /* 0 - single_pass_atomic.
+         * 1 - loop_until_compare_satisfied.
+         */
+#		define SDMA_ATOMIC_TMZ(x)                ((x) << 2)
+		/* 0 - non-TMZ.
+		 * 1 - TMZ.
+	     */
+#		define SDMA_ATOMIC_OPCODE(x)             ((x) << 9)
+		/* TC_OP_ATOMIC_CMPSWAP_RTN_32 0x00000008
+		 * same as Packet 3
+		 */
+
 #define GFX_COMPUTE_NOP  0xffff1000
 #define SDMA_NOP  0x0
 
@@ -1396,6 +1410,7 @@ amdgpu_command_submission_write_linear_helper_with_secure(amdgpu_device_handle
 	struct amdgpu_cs_request *ibs_request;
 	uint64_t bo_mc;
 	volatile uint32_t *bo_cpu;
+	uint32_t bo_cpu_origin;
 	int i, j, r, loop, ring_id;
 	uint64_t gtt_flags[2] = {0, AMDGPU_GEM_CREATE_CPU_GTT_USWC};
 	amdgpu_va_handle va_handle;
@@ -1448,8 +1463,9 @@ amdgpu_command_submission_write_linear_helper_with_secure(amdgpu_device_handle
 								  sdma_write_length);
 				else
 					pm4[i++] = SDMA_PACKET(SDMA_OPCODE_WRITE,
-							       SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
-				pm4[i++] = 0xffffffff & bo_mc;
+							       SDMA_WRITE_SUB_OPCODE_LINEAR,
+							       secure ? SDMA_ATOMIC_TMZ(1) : 0);
+				pm4[i++] = 0xfffffffc & bo_mc;
 				pm4[i++] = (0xffffffff00000000 & bo_mc) >> 32;
 				if (family_id >= AMDGPU_FAMILY_AI)
 					pm4[i++] = sdma_write_length - 1;
@@ -1501,6 +1517,65 @@ amdgpu_command_submission_write_linear_helper_with_secure(amdgpu_device_handle
 							ip_type, ring_id, i, pm4,
 							1, resources, ib_info,
 							ibs_request, true);
+			} else if (ip_type == AMDGPU_HW_IP_DMA) {
+				/* restore the bo_cpu to compare */
+				bo_cpu_origin = bo_cpu[0];
+				memset((void*)pm4, 0, pm4_dw * sizeof(uint32_t));
+				/* atomic opcode for 32b w/ RTN and ATOMIC_SWAPCMP_RTN
+				 * loop, 1-loop_until_compare_satisfied.
+				 * single_pass_atomic, 0-lru
+				 */
+				pm4[i++] = SDMA_PACKET(SDMA_OPCODE_ATOMIC,
+							       0,
+							       SDMA_ATOMIC_LOOP(1) |
+							       SDMA_ATOMIC_TMZ(1) |
+							       SDMA_ATOMIC_OPCODE(TC_OP_ATOMIC_CMPSWAP_RTN_32));
+				pm4[i++] = 0xfffffffc & bo_mc;
+				pm4[i++] = (0xffffffff00000000 & bo_mc) >> 32;
+				pm4[i++] = 0x12345678;
+				pm4[i++] = 0x0;
+				pm4[i++] = 0xdeadbeaf;
+				pm4[i++] = 0x0;
+				pm4[i++] = 0x100;
+				amdgpu_test_exec_cs_helper_raw(device, context_handle,
+							ip_type, ring_id, i, pm4,
+							1, resources, ib_info,
+							ibs_request, true);
+				/* DMA's atomic behavir is unlike GFX
+				 * If the comparing data is not equal to destination data,
+				 * For GFX, loop again till gfx timeout(system hang).
+				 * For DMA, loop again till timer expired and then send interrupt.
+				 * So testcase can't use interrupt mechanism.
+				 * We take another way to verify. When the comparing data is not
+				 * equal to destination data, overwrite the source data to the destination
+				 * buffer. Otherwise, original destination data unchanged.
+				 * So if the bo_cpu data is overwritten, the result is passed.
+				 */
+				CU_ASSERT_NOT_EQUAL(bo_cpu[0], bo_cpu_origin);
+
+				/* compare again for the case of dest_data != cmp_data */
+				i = 0;
+				/* restore again, here dest_data should be */
+				bo_cpu_origin = bo_cpu[0];
+				memset((void*)pm4, 0, pm4_dw * sizeof(uint32_t));
+				pm4[i++] = SDMA_PACKET(SDMA_OPCODE_ATOMIC,
+							       0,
+							       SDMA_ATOMIC_LOOP(1) |
+							       SDMA_ATOMIC_TMZ(1) |
+							       SDMA_ATOMIC_OPCODE(TC_OP_ATOMIC_CMPSWAP_RTN_32));
+				pm4[i++] = 0xfffffffc & bo_mc;
+				pm4[i++] = (0xffffffff00000000 & bo_mc) >> 32;
+				pm4[i++] = 0x87654321;
+				pm4[i++] = 0x0;
+				pm4[i++] = 0xdeadbeaf;
+				pm4[i++] = 0x0;
+				pm4[i++] = 0x100;
+				amdgpu_test_exec_cs_helper_raw(device, context_handle,
+							ip_type, ring_id, i, pm4,
+							1, resources, ib_info,
+							ibs_request, true);
+				/* here bo_cpu[0] should be unchanged, still is 0x12345678, otherwise failed*/
+				CU_ASSERT_EQUAL(bo_cpu[0], bo_cpu_origin);
 			}
 
 			r = amdgpu_bo_unmap_and_free(bo, va_handle, bo_mc,
