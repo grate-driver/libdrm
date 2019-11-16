@@ -14,7 +14,7 @@
 # repository's registry will be used there as well.
 variables:
   UPSTREAM_REPO: mesa/drm
-  DEBIAN_TAG: "2019-11-12"
+  DEBIAN_TAG: "2019-11-16"
   DEBIAN_VERSION: buster-slim
   DEBIAN_IMAGE: "$CI_REGISTRY_IMAGE/debian/$DEBIAN_VERSION:$DEBIAN_TAG"
 
@@ -105,6 +105,11 @@ meson-armhf:
   extends: meson-x86_64
   variables:
     CROSS: armhf
+
+meson-ppc64el:
+  extends: meson-x86_64
+  variables:
+    CROSS: ppc64el
 
 meson-arch-daily:
   rules:

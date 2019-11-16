@@ -4,7 +4,7 @@ set -o xtrace
 
 export DEBIAN_FRONTEND=noninteractive
 
-CROSS_ARCHITECTURES=(i386 armhf arm64)
+CROSS_ARCHITECTURES=(i386 armhf arm64 ppc64el)
 for arch in ${CROSS_ARCHITECTURES[@]}; do
   dpkg --add-architecture $arch
 done
