@@ -194,6 +194,10 @@ static Suites_Active_Status suites_active_stat[] = {
 			.pName = SYNCOBJ_TIMELINE_TESTS_STR,
 			.pActive = suite_syncobj_timeline_tests_enable,
 		},
+		{
+			.pName = SECURITY_TESTS_STR,
+			.pActive = suite_security_tests_enable,
+		},
 };
 
 
