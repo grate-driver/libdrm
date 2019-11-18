@@ -49,6 +49,14 @@ CU_BOOL suite_security_tests_enable(void)
 		enable = CU_FALSE;
 	}
 
+	if ((major_version < 3) ||
+		((major_version == 3) && (minor_version < 37))) {
+		printf("\n\nDon't support TMZ (trust memory zone), kernel DRM version (%d.%d)\n",
+			major_version, minor_version);
+		printf("is older, security suite disabled\n");
+		enable = CU_FALSE;
+	}
+
 	if (amdgpu_device_deinitialize(device_handle))
 		return CU_FALSE;
 
