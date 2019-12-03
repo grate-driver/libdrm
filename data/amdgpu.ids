@@ -140,6 +140,7 @@
 6860,	02,	Radeon Instinct MI25
 6860,	03,	Radeon Pro V340
 6860,	04,	Radeon Instinct MI25x2
+6860,	07,	Radeon (TM) Pro V320
 6861,	00,	Radeon Pro WX 9100
 6862,	00,	Radeon Pro SSG
 6863,	00,	Radeon Vega Frontier Edition
@@ -174,6 +175,9 @@
 6939,	0,	AMD Radeon R9 200 Series
 6939,	F1,	AMD Radeon (TM) R9 380 Series
 6980,	00,	Radeon Pro WX3100
+6981,	00,	AMD Radeon (TM) Pro WX 3200 Series
+6981,	01,	AMD Radeon (TM) Pro WX 3200 Series
+6981,	10,	AMD Radeon (TM) Pro WX 3200 Series
 6985,	00,	AMD Radeon Pro WX3100
 6987,	80,	AMD Embedded Radeon E9171
 6987,	C0,	Radeon 550X Series
@@ -184,12 +188,18 @@
 699F,	C0,	Radeon 500 Series
 699F,	C1,	Radeon 540 Series
 699F,	C3,	Radeon 500 Series
-699F,	C7,	Radeon 550 Series
+699F,	C7,	Radeon RX550/550 Series
 7300,	C1,	AMD FirePro (TM) S9300 x2
 7300,	C8,	AMD Radeon (TM) R9 Fury Series
 7300,	C9,	Radeon (TM) Pro Duo
 7300,	CB,	AMD Radeon (TM) R9 Fury Series
 7300,	CA,	AMD Radeon (TM) R9 Fury Series
+731F,	C0,	AMD Radeon RX 5700 XT 50th Anniversary
+731F,	C1,	AMD Radeon RX 5700 XT
+731F,	C4,	AMD Radeon RX 5700
+731F,	C5,	AMD Radeon RX 5700 XT
+7340,	C1,	Radeon RX 5500M
+7340,	C7,	Radeon RX 5500
 9874,	C4,	AMD Radeon R7 Graphics
 9874,	C5,	AMD Radeon R6 Graphics
 9874,	C6,	AMD Radeon R6 Graphics
