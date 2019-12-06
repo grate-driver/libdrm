@@ -881,9 +881,7 @@ CU_TestInfo ras_tests[] = {
 	{ "ras query test",	amdgpu_ras_query_test },
 	{ "ras inject test",	amdgpu_ras_inject_test },
 	{ "ras disable test",	amdgpu_ras_disable_test },
-#if 0
 	{ "ras enable test",	amdgpu_ras_enable_test },
-#endif
 	CU_TEST_INFO_NULL,
 };
 
