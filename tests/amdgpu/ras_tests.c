@@ -30,6 +30,9 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include "xf86drm.h"
+#include <limits.h>
+
+#define PATH_SIZE PATH_MAX
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -498,7 +501,7 @@ static int get_file_contents(char *file, char *buf, int size);
 
 static int amdgpu_ras_lookup_id(drmDevicePtr device)
 {
-	char path[1024];
+	char path[PATH_SIZE];
 	char str[128];
 	drmPciBusInfo info;
 	int i;
@@ -507,7 +510,7 @@ static int amdgpu_ras_lookup_id(drmDevicePtr device)
 	for (i = 0; i < MAX_CARDS_SUPPORTED; i++) {
 		memset(str, 0, sizeof(str));
 		memset(&info, 0, sizeof(info));
-		sprintf(path, "/sys/kernel/debug/dri/%d/name", i);
+		snprintf(path, PATH_SIZE, "/sys/kernel/debug/dri/%d/name", i);
 		if (get_file_contents(path, str, sizeof(str)) <= 0)
 			continue;
 
@@ -525,16 +528,16 @@ static int amdgpu_ras_lookup_id(drmDevicePtr device)
 //helpers
 
 static int test_card;
-static char sysfs_path[1024];
-static char debugfs_path[1024];
+static char sysfs_path[PATH_SIZE];
+static char debugfs_path[PATH_SIZE];
 static uint32_t ras_mask;
 static amdgpu_device_handle device_handle;
 
 static void set_test_card(int card)
 {
 	test_card = card;
-	sprintf(sysfs_path, "/sys/class/drm/card%d/device/ras/", devices[card].id);
-	sprintf(debugfs_path, "/sys/kernel/debug/dri/%d/ras/", devices[card].id);
+	snprintf(sysfs_path, PATH_SIZE, "/sys/class/drm/card%d/device/ras/", devices[card].id);
+	snprintf(debugfs_path, PATH_SIZE,  "/sys/kernel/debug/dri/%d/ras/", devices[card].id);
 	ras_mask = devices[card].capability;
 	device_handle = devices[card].device_handle;
 	ras_block_mask_inject = devices[card].test_mask.inject_mask;
@@ -605,10 +608,11 @@ static int amdgpu_ras_is_feature_supported(enum amdgpu_ras_block block)
 
 static int amdgpu_ras_invoke(struct ras_debug_if *data)
 {
-	char path[1024];
+	char path[PATH_SIZE];
 	int ret;
 
-	sprintf(path, "%s%s", get_ras_debugfs_root(), "ras_ctrl");
+	snprintf(path, sizeof(path), "%s", get_ras_debugfs_root());
+	strncat(path, "ras_ctrl", sizeof(path) - strlen(path));
 
 	ret = set_file_contents(path, (char *)data, sizeof(*data))
 		- sizeof(*data);
@@ -619,14 +623,16 @@ static int amdgpu_ras_query_err_count(enum amdgpu_ras_block block,
 		unsigned long *ue, unsigned long *ce)
 {
 	char buf[64];
-	char name[1024];
+	char name[PATH_SIZE];
 
 	*ue = *ce = 0;
 
 	if (amdgpu_ras_is_feature_supported(block) <= 0)
 		return -1;
 
-	sprintf(name, "%s%s%s", get_ras_sysfs_root(), ras_block_str(block), "_err_count");
+	snprintf(name, sizeof(name), "%s", get_ras_sysfs_root());
+	strncat(name, ras_block_str(block), sizeof(name) - strlen(name));
+	strncat(name, "_err_count", sizeof(name) - strlen(name));
 
 	if (is_file_ok(name, O_RDONLY))
 		return 0;
@@ -837,7 +843,7 @@ static void amdgpu_ras_basic_test(void)
 	int i;
 	int j;
 	uint32_t features;
-	char path[1024];
+	char path[PATH_SIZE];
 
 	ret = is_file_ok("/sys/module/amdgpu/parameters/ras_mask", O_RDONLY);
 	CU_ASSERT_EQUAL(ret, 0);
@@ -849,11 +855,15 @@ static void amdgpu_ras_basic_test(void)
 				sizeof(features), &features);
 		CU_ASSERT_EQUAL(ret, 0);
 
-		sprintf(path, "%s%s", get_ras_debugfs_root(), "ras_ctrl");
+		snprintf(path, sizeof(path), "%s", get_ras_debugfs_root());
+		strncat(path, "ras_ctrl", sizeof(path) - strlen(path));
+
 		ret = is_file_ok(path, O_WRONLY);
 		CU_ASSERT_EQUAL(ret, 0);
 
-		sprintf(path, "%s%s", get_ras_sysfs_root(), "features");
+		snprintf(path, sizeof(path), "%s", get_ras_sysfs_root());
+		strncat(path, "features", sizeof(path) - strlen(path));
+
 		ret = is_file_ok(path, O_RDONLY);
 		CU_ASSERT_EQUAL(ret, 0);
 
@@ -865,11 +875,17 @@ static void amdgpu_ras_basic_test(void)
 			if (!((1 << j) & ras_block_mask_basic))
 				continue;
 
-			sprintf(path, "%s%s%s", get_ras_sysfs_root(), ras_block_str(j), "_err_count");
+			snprintf(path, sizeof(path), "%s", get_ras_sysfs_root());
+			strncat(path, ras_block_str(j), sizeof(path) -  strlen(path));
+			strncat(path, "_err_count", sizeof(path) - strlen(path));
+
 			ret = is_file_ok(path, O_RDONLY);
 			CU_ASSERT_EQUAL(ret, 0);
 
-			sprintf(path, "%s%s%s", get_ras_debugfs_root(), ras_block_str(j), "_err_inject");
+			snprintf(path, sizeof(path), "%s", get_ras_debugfs_root());
+			strncat(path, ras_block_str(j), sizeof(path) - strlen(path));
+			strncat(path, "_err_inject", sizeof(path) - strlen(path));
+
 			ret = is_file_ok(path, O_WRONLY);
 			CU_ASSERT_EQUAL(ret, 0);
 		}
