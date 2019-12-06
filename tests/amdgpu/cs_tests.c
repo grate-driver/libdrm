@@ -358,6 +358,7 @@ static void amdgpu_cs_uvd_decode(void)
 		bs_addr = fb_addr + 4*1024;
 	dpb_addr = ALIGN(bs_addr + sizeof(uvd_bitstream), 4*1024);
 
+	ctx_addr = 0;
 	if (family_id >= AMDGPU_FAMILY_VI) {
 		if ((family_id == AMDGPU_FAMILY_AI) ||
 		    (chip_id == chip_rev+0x50 || chip_id == chip_rev+0x5A ||

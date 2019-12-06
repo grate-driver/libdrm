@@ -522,124 +522,6 @@ static int amdgpu_ras_lookup_id(drmDevicePtr device)
 	return -1;
 }
 
-CU_BOOL suite_ras_tests_enable(void)
-{
-	amdgpu_device_handle device_handle;
-	uint32_t  major_version;
-	uint32_t  minor_version;
-	int i;
-	drmDevicePtr device;
-
-	for (i = 0; i < MAX_CARDS_SUPPORTED && drm_amdgpu[i] >= 0; i++) {
-		if (amdgpu_device_initialize(drm_amdgpu[i], &major_version,
-					&minor_version, &device_handle))
-			continue;
-
-		if (drmGetDevice2(drm_amdgpu[i],
-					DRM_DEVICE_GET_PCI_REVISION,
-					&device))
-			continue;
-
-		if (device->bustype == DRM_BUS_PCI &&
-				amdgpu_ras_lookup_capability(device_handle)) {
-			amdgpu_device_deinitialize(device_handle);
-			return CU_TRUE;
-		}
-
-		if (amdgpu_device_deinitialize(device_handle))
-			continue;
-	}
-
-	return CU_FALSE;
-}
-
-int suite_ras_tests_init(void)
-{
-	drmDevicePtr device;
-	amdgpu_device_handle device_handle;
-	uint32_t  major_version;
-	uint32_t  minor_version;
-	uint32_t  capability;
-	struct ras_test_mask test_mask;
-	int id;
-	int i;
-	int r;
-
-	for (i = 0; i < MAX_CARDS_SUPPORTED && drm_amdgpu[i] >= 0; i++) {
-		r = amdgpu_device_initialize(drm_amdgpu[i], &major_version,
-				&minor_version, &device_handle);
-		if (r)
-			continue;
-
-		if (drmGetDevice2(drm_amdgpu[i],
-					DRM_DEVICE_GET_PCI_REVISION,
-					&device)) {
-			amdgpu_device_deinitialize(device_handle);
-			continue;
-		}
-
-		if (device->bustype != DRM_BUS_PCI) {
-			amdgpu_device_deinitialize(device_handle);
-			continue;
-		}
-
-		capability = amdgpu_ras_lookup_capability(device_handle);
-		if (capability == 0) {
-			amdgpu_device_deinitialize(device_handle);
-			continue;
-
-		}
-
-		id = amdgpu_ras_lookup_id(device);
-		if (id == -1) {
-			amdgpu_device_deinitialize(device_handle);
-			continue;
-		}
-
-		test_mask = amdgpu_ras_get_test_mask(device);
-
-		devices[devices_count++] = (struct amdgpu_ras_data) {
-			device_handle, id, capability, test_mask,
-		};
-	}
-
-	if (devices_count == 0)
-		return CUE_SINIT_FAILED;
-
-	return CUE_SUCCESS;
-}
-
-int suite_ras_tests_clean(void)
-{
-	int r;
-	int i;
-	int ret = CUE_SUCCESS;
-
-	for (i = 0; i < devices_count; i++) {
-		r = amdgpu_device_deinitialize(devices[i].device_handle);
-		if (r)
-			ret = CUE_SCLEAN_FAILED;
-	}
-	return ret;
-}
-
-static void amdgpu_ras_disable_test(void);
-static void amdgpu_ras_enable_test(void);
-static void amdgpu_ras_inject_test(void);
-static void amdgpu_ras_query_test(void);
-static void amdgpu_ras_basic_test(void);
-
-CU_TestInfo ras_tests[] = {
-	{ "ras basic test",	amdgpu_ras_basic_test },
-	{ "ras query test",	amdgpu_ras_query_test },
-	{ "ras inject test",	amdgpu_ras_inject_test },
-	{ "ras disable test",	amdgpu_ras_disable_test },
-#if 0
-	{ "ras enable test",	amdgpu_ras_enable_test },
-#endif
-	CU_TEST_INFO_NULL,
-};
-
 //helpers
 
 static int test_card;
@@ -648,10 +530,8 @@ static char debugfs_path[1024];
 static uint32_t ras_mask;
 static amdgpu_device_handle device_handle;
 
-static int set_test_card(int card)
+static void set_test_card(int card)
 {
-	int i;
-
 	test_card = card;
 	sprintf(sysfs_path, "/sys/class/drm/card%d/device/ras/", devices[card].id);
 	sprintf(debugfs_path, "/sys/kernel/debug/dri/%d/ras/", devices[card].id);
@@ -660,8 +540,6 @@ static int set_test_card(int card)
 	ras_block_mask_inject = devices[card].test_mask.inject_mask;
 	ras_block_mask_query = devices[card].test_mask.query_mask;
 	ras_block_mask_basic = devices[card].test_mask.basic_mask;
-
-	return 0;
 }
 
 static const char *get_ras_sysfs_root(void)
@@ -742,7 +620,6 @@ static int amdgpu_ras_query_err_count(enum amdgpu_ras_block block,
 {
 	char buf[64];
 	char name[1024];
-	int ret;
 
 	*ue = *ce = 0;
 
@@ -779,7 +656,7 @@ static int amdgpu_ras_inject(enum amdgpu_ras_block block,
 	inject->head.block = block;
 	inject->head.type = type;
 	inject->head.sub_block_index = sub_block;
-	strncpy(inject->head.name, ras_block_str(block), 32);
+	strncpy(inject->head.name, ras_block_str(block), sizeof(inject->head.name)-1);
 	inject->address = address;
 	inject->value = value;
 
@@ -956,8 +833,6 @@ static void amdgpu_ras_query_test(void)
 
 static void amdgpu_ras_basic_test(void)
 {
-	unsigned long ue, ce;
-	char name[1024];
 	int ret;
 	int i;
 	int j;
@@ -999,4 +874,116 @@ static void amdgpu_ras_basic_test(void)
 			CU_ASSERT_EQUAL(ret, 0);
 		}
 	}
+}
+
+CU_TestInfo ras_tests[] = {
+	{ "ras basic test",	amdgpu_ras_basic_test },
+	{ "ras query test",	amdgpu_ras_query_test },
+	{ "ras inject test",	amdgpu_ras_inject_test },
+	{ "ras disable test",	amdgpu_ras_disable_test },
+#if 0
+	{ "ras enable test",	amdgpu_ras_enable_test },
+#endif
+	CU_TEST_INFO_NULL,
+};
+
+CU_BOOL suite_ras_tests_enable(void)
+{
+	amdgpu_device_handle device_handle;
+	uint32_t  major_version;
+	uint32_t  minor_version;
+	int i;
+	drmDevicePtr device;
+
+	for (i = 0; i < MAX_CARDS_SUPPORTED && drm_amdgpu[i] >= 0; i++) {
+		if (amdgpu_device_initialize(drm_amdgpu[i], &major_version,
+					&minor_version, &device_handle))
+			continue;
+
+		if (drmGetDevice2(drm_amdgpu[i],
+					DRM_DEVICE_GET_PCI_REVISION,
+					&device))
+			continue;
+
+		if (device->bustype == DRM_BUS_PCI &&
+				amdgpu_ras_lookup_capability(device_handle)) {
+			amdgpu_device_deinitialize(device_handle);
+			return CU_TRUE;
+		}
+
+		if (amdgpu_device_deinitialize(device_handle))
+			continue;
+	}
+
+	return CU_FALSE;
+}
+
+int suite_ras_tests_init(void)
+{
+	drmDevicePtr device;
+	amdgpu_device_handle device_handle;
+	uint32_t  major_version;
+	uint32_t  minor_version;
+	uint32_t  capability;
+	struct ras_test_mask test_mask;
+	int id;
+	int i;
+	int r;
+
+	for (i = 0; i < MAX_CARDS_SUPPORTED && drm_amdgpu[i] >= 0; i++) {
+		r = amdgpu_device_initialize(drm_amdgpu[i], &major_version,
+				&minor_version, &device_handle);
+		if (r)
+			continue;
+
+		if (drmGetDevice2(drm_amdgpu[i],
+					DRM_DEVICE_GET_PCI_REVISION,
+					&device)) {
+			amdgpu_device_deinitialize(device_handle);
+			continue;
+		}
+
+		if (device->bustype != DRM_BUS_PCI) {
+			amdgpu_device_deinitialize(device_handle);
+			continue;
+		}
+
+		capability = amdgpu_ras_lookup_capability(device_handle);
+		if (capability == 0) {
+			amdgpu_device_deinitialize(device_handle);
+			continue;
+
+		}
+
+		id = amdgpu_ras_lookup_id(device);
+		if (id == -1) {
+			amdgpu_device_deinitialize(device_handle);
+			continue;
+		}
+
+		test_mask = amdgpu_ras_get_test_mask(device);
+
+		devices[devices_count++] = (struct amdgpu_ras_data) {
+			device_handle, id, capability, test_mask,
+		};
+	}
+
+	if (devices_count == 0)
+		return CUE_SINIT_FAILED;
+
+	return CUE_SUCCESS;
+}
+
+int suite_ras_tests_clean(void)
+{
+	int r;
+	int i;
+	int ret = CUE_SUCCESS;
+
+	for (i = 0; i < devices_count; i++) {
+		r = amdgpu_device_deinitialize(devices[i].device_handle);
+		if (r)
+			ret = CUE_SCLEAN_FAILED;
+	}
+	return ret;
 }
