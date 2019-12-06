@@ -3306,7 +3306,8 @@ static void amdgpu_memcpy_draw(amdgpu_device_handle device_handle,
 	int bo_cmd_size = 4096;
 	struct amdgpu_cs_request ibs_request = {0};
 	struct amdgpu_cs_ib_info ib_info= {0};
-	uint32_t hang_state, hangs, expired;
+	uint32_t hang_state, hangs;
+	uint32_t expired;
 	amdgpu_bo_list_handle bo_list;
 	struct amdgpu_cs_fence fence_status = {0};
 
