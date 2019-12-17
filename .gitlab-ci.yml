@@ -56,7 +56,7 @@ debian:
   variables:
     GIT_DEPTH: 10
   script:
-    - meson _build
+    - meson build
         -D amdgpu=true
         -D cairo-tests=true
         -D etnaviv=true
@@ -75,13 +75,13 @@ debian:
         -D vc4=true
         -D vmwgfx=true
         ${CROSS+--cross /cross_file-$CROSS.txt}
-    - ninja -C _build
-    - ninja -C _build test
-    - DESTDIR=$PWD/install ninja -C _build install
+    - ninja -C build
+    - ninja -C build test
+    - DESTDIR=$PWD/install ninja -C build install
   artifacts:
     when: on_failure
     paths:
-      - _build/meson-logs/*
+      - build/meson-logs/*
 
 meson-x86_64:
   extends:
