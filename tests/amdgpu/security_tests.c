@@ -305,7 +305,7 @@ static void amdgpu_secure_bounce(void)
 	/* Fill Alice with a pattern.
 	 */
 	for (pp = alice.bo->cpu_ptr;
-	     pp < (typeof(pp)) alice.bo->cpu_ptr + SECURE_BUFFER_SIZE;
+	     pp < (__typeof__(pp)) alice.bo->cpu_ptr + SECURE_BUFFER_SIZE;
 	     pp += sizeof(secure_pattern))
 		memcpy(pp, secure_pattern, sizeof(secure_pattern));
 
@@ -343,7 +343,7 @@ static void amdgpu_secure_bounce(void)
 	/* Verify the contents of Alice.
 	 */
 	for (pp = alice.bo->cpu_ptr;
-	     pp < (typeof(pp)) alice.bo->cpu_ptr + SECURE_BUFFER_SIZE;
+	     pp < (__typeof__(pp)) alice.bo->cpu_ptr + SECURE_BUFFER_SIZE;
 	     pp += sizeof(secure_pattern)) {
 		res = memcmp(pp, secure_pattern, sizeof(secure_pattern));
 		if (res) {
