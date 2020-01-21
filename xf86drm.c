@@ -515,8 +515,28 @@ static int drmGetMinorBase(int type)
     };
 }
 
-static int drmGetMinorType(int minor)
+static int drmGetMinorType(int major, int minor)
 {
+#ifdef __FreeBSD__
+    char name[SPECNAMELEN];
+    int id;
+
+    if (!devname_r(makedev(major, minor), S_IFCHR, name, sizeof(name)))
+        return -1;
+
+    if (sscanf(name, "drm/%d", &id) != 1) {
+        // If not in /dev/drm/ we have the type in the name
+        if (sscanf(name, "dri/card%d\n", &id) >= 1)
+           return DRM_NODE_PRIMARY;
+        else if (sscanf(name, "dri/control%d\n", &id) >= 1)
+           return DRM_NODE_CONTROL;
+        else if (sscanf(name, "dri/renderD%d\n", &id) >= 1)
+           return DRM_NODE_RENDER;
+        return -1;
+    }
+
+    minor = id;
+#endif
     int type = minor >> 6;
 
     if (minor < 0)
@@ -2812,7 +2832,7 @@ drm_public int drmGetNodeTypeFromFd(int fd)
         return -1;
     }
 
-    type = drmGetMinorType(min);
+    type = drmGetMinorType(maj, min);
     if (type == -1)
         errno = ENODEV;
     return type;
@@ -3086,7 +3106,7 @@ static int drmParsePciBusInfo(int maj, int min, drmPciBusInfoPtr info)
     struct drm_pciinfo pinfo;
     int fd, type;
 
-    type = drmGetMinorType(min);
+    type = drmGetMinorType(maj, min);
     if (type == -1)
         return -ENODEV;
 
@@ -3252,7 +3272,7 @@ static int drmParsePciDeviceInfo(int maj, int min,
     struct drm_pciinfo pinfo;
     int fd, type;
 
-    type = drmGetMinorType(min);
+    type = drmGetMinorType(maj, min);
     if (type == -1)
         return -ENODEV;
 
@@ -3841,7 +3861,7 @@ drm_public int drmGetDevice2(int fd, uint32_t flags, drmDevicePtr *device)
     if (!drmNodeIsDRM(maj, min) || !S_ISCHR(sbuf.st_mode))
         return -EINVAL;
 
-    node_type = drmGetMinorType(min);
+    node_type = drmGetMinorType(maj, min);
     if (node_type == -1)
         return -ENODEV;
 
@@ -4080,7 +4100,7 @@ drm_public char *drmGetDeviceNameFromFd2(int fd)
     if (!drmNodeIsDRM(maj, min) || !S_ISCHR(sbuf.st_mode))
         return NULL;
 
-    node_type = drmGetMinorType(min);
+    node_type = drmGetMinorType(maj, min);
     if (node_type == -1)
         return NULL;
 
