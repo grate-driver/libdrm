@@ -57,6 +57,9 @@
 #ifdef MAJOR_IN_SYSMACROS
 #include <sys/sysmacros.h>
 #endif
+#if HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
 #include <math.h>
 
 #if defined(__FreeBSD__)
@@ -3133,6 +3136,66 @@ get_pci_path(int maj, int min, char *pci_path)
         *term = 0;
 }
 
+#ifdef __FreeBSD__
+static int get_sysctl_pci_bus_info(int maj, int min, drmPciBusInfoPtr info)
+{
+    char dname[SPECNAMELEN];
+    char sysctl_name[16];
+    char sysctl_val[256];
+    size_t sysctl_len;
+    int id, type, nelem;
+    unsigned int rdev, majmin, domain, bus, dev, func;
+
+    rdev = makedev(maj, min);
+    if (!devname_r(rdev, S_IFCHR, dname, sizeof(dname)))
+      return -EINVAL;
+
+    if (sscanf(dname, "drm/%d\n", &id) != 1)
+        return -EINVAL;
+    type = drmGetMinorType(maj, min);
+    if (type == -1)
+        return -EINVAL;
+
+    /* BUG: This above section is iffy, since it mandates that a driver will
+     * create both card and render node.
+     * If it does not, the next DRM device will create card#X and
+     * renderD#(128+X)-1.
+     * This is a possibility in FreeBSD but for now there is no good way for
+     * obtaining the info.
+     */
+    switch (type) {
+    case DRM_NODE_PRIMARY:
+         break;
+    case DRM_NODE_CONTROL:
+         id -= 64;
+         break;
+    case DRM_NODE_RENDER:
+         id -= 128;
+          break;
+    }
+    if (id < 0)
+        return -EINVAL;
+
+    if (snprintf(sysctl_name, sizeof(sysctl_name), "hw.dri.%d.busid", id) <= 0)
+      return -EINVAL;
+    sysctl_len = sizeof(sysctl_val);
+    if (sysctlbyname(sysctl_name, sysctl_val, &sysctl_len, NULL, 0))
+      return -EINVAL;
+
+    #define bus_fmt "pci:%04x:%02x:%02x.%u"
+
+    nelem = sscanf(sysctl_val, bus_fmt, &domain, &bus, &dev, &func);
+    if (nelem != 4)
+      return -EINVAL;
+    info->domain = domain;
+    info->bus = bus;
+    info->dev = dev;
+    info->func = func;
+
+    return 0;
+}
+#endif
+
 static int drmParsePciBusInfo(int maj, int min, drmPciBusInfoPtr info)
 {
 #ifdef __linux__
@@ -3182,6 +3245,8 @@ static int drmParsePciBusInfo(int maj, int min, drmPciBusInfoPtr info)
     info->func = pinfo.func;
 
     return 0;
+#elif __FreeBSD__
+    return get_sysctl_pci_bus_info(maj, min, info);
 #else
 #warning "Missing implementation of drmParsePciBusInfo"
     return -EINVAL;
