@@ -2938,6 +2938,38 @@ static char *drmGetMinorNameForFD(int fd, int type)
 
     closedir(sysdir);
     return NULL;
+#elif __FreeBSD__
+    struct stat sbuf;
+    char dname[SPECNAMELEN];
+    const char *mname;
+    char name[SPECNAMELEN];
+    int id, maj, min;
+
+    if (fstat(fd, &sbuf))
+        return NULL;
+
+    maj = major(sbuf.st_rdev);
+    min = minor(sbuf.st_rdev);
+
+    if (!drmNodeIsDRM(maj, min) || !S_ISCHR(sbuf.st_mode))
+        return NULL;
+
+    if (!devname_r(sbuf.st_rdev, S_IFCHR, dname, sizeof(dname)))
+        return NULL;
+
+    /* Handle both /dev/drm and /dev/dri
+     * FreeBSD on amd64/i386/powerpc external kernel modules create node in
+     * in /dev/drm/ and links in /dev/dri while a WIP in kernel driver creates
+     * only device nodes in /dev/dri/ */
+    mname = drmGetMinorName(type);
+    if (sscanf(dname, "drm/%d", &id) != 1) {
+        snprintf(name, sizeof(name), "dri/%s", mname);
+        if (strncmp(name, dname, strlen(name)) != 0)
+            return NULL;
+        snprintf(name, sizeof(name), "/dev/%s", dname);
+    } else
+        snprintf(name, sizeof(name), DRM_DIR_NAME "/%s%d", mname, id);
+    return strdup(name);
 #else
     struct stat sbuf;
     char buf[PATH_MAX + 1];
