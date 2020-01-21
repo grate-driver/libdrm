@@ -75,7 +75,7 @@
 
 #include "util_math.h"
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+#ifdef __DragonFly__
 #define DRM_MAJOR 145
 #endif
 
