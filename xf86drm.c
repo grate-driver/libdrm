@@ -3109,7 +3109,7 @@ static int drmParseSubsystemType(int maj, int min)
         subsystem_type = get_subsystem_type(path);
     }
     return subsystem_type;
-#elif defined(__OpenBSD__) || defined(__DragonFly__)
+#elif defined(__OpenBSD__) || defined(__DragonFly__) || defined(__FreeBSD__)
     return DRM_BUS_PCI;
 #else
 #warning "Missing implementation of drmParseSubsystemType"
