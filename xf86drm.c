@@ -59,6 +59,10 @@
 #endif
 #include <math.h>
 
+#if defined(__FreeBSD__)
+#include <sys/param.h>
+#endif
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 /* Not all systems have MAP_FAILED defined */
@@ -2777,6 +2781,16 @@ static bool drmNodeIsDRM(int maj, int min)
     snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device/drm",
              maj, min);
     return stat(path, &sbuf) == 0;
+#elif __FreeBSD__
+    char name[SPECNAMELEN];
+
+    if (!devname_r(makedev(maj, min), S_IFCHR, name, sizeof(name)))
+      return 0;
+    /* Handle drm/ and dri/ as both are present in different FreeBSD version
+     * FreeBSD on amd64/i386/powerpc external kernel modules create node in
+     * in /dev/drm/ and links in /dev/dri while a WIP in kernel driver creates
+     * only device nodes in /dev/dri/ */
+    return (!strncmp(name, "drm/", 4) || !strncmp(name, "dri/", 4));
 #else
     return maj == DRM_MAJOR;
 #endif
