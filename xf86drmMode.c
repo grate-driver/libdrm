@@ -806,7 +806,7 @@ drm_public int drmCheckModesettingSupported(const char *busid)
 	size_t len;
 
 	/* How many GPUs do we expect in the machine ? */
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 10; i++) {
 		snprintf(oid, sizeof(oid), "hw.dri.%d.busid", i);
 		len = sizeof(sbusid);
 		ret = sysctlbyname(oid, sbusid, &len, NULL, 0);
