@@ -2964,10 +2964,10 @@ sysfs_uevent_get(const char *path, const char *fmt, ...)
 /* Little white lie to avoid major rework of the existing code */
 #define DRM_BUS_VIRTIO 0x10
 
-static int drmParseSubsystemType(int maj, int min)
-{
 #ifdef __linux__
-    char path[PATH_MAX + 1];
+static int get_subsystem_type(const char *device_path)
+{
+    char path[PATH_MAX + 1] = "";
     char link[PATH_MAX + 1] = "";
     char *name;
     struct {
@@ -2982,8 +2982,8 @@ static int drmParseSubsystemType(int maj, int min)
         { "/virtio", DRM_BUS_VIRTIO },
     };
 
-    snprintf(path, PATH_MAX, "/sys/dev/char/%d:%d/device/subsystem",
-             maj, min);
+    strncpy(path, device_path, PATH_MAX);
+    strncat(path, "/subsystem", PATH_MAX);
 
     if (readlink(path, link, PATH_MAX) < 0)
         return -errno;
@@ -2998,6 +2998,17 @@ static int drmParseSubsystemType(int maj, int min)
     }
 
     return -EINVAL;
+}
+#endif
+
+static int drmParseSubsystemType(int maj, int min)
+{
+#ifdef __linux__
+    char path[PATH_MAX + 1] = "";
+
+    snprintf(path, PATH_MAX, "/sys/dev/char/%d:%d/device", maj, min);
+
+    return get_subsystem_type(path);
 #elif defined(__OpenBSD__) || defined(__DragonFly__)
     return DRM_BUS_PCI;
 #else
