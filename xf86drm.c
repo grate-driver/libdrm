@@ -3005,10 +3005,20 @@ static int drmParseSubsystemType(int maj, int min)
 {
 #ifdef __linux__
     char path[PATH_MAX + 1] = "";
+    char real_path[PATH_MAX + 1] = "";
+    int subsystem_type;
 
-    snprintf(path, PATH_MAX, "/sys/dev/char/%d:%d/device", maj, min);
+    snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device", maj, min);
+    if (!realpath(path, real_path))
+        return -errno;
+    snprintf(path, sizeof(path), "%s", real_path);
 
-    return get_subsystem_type(path);
+    subsystem_type = get_subsystem_type(path);
+    if (subsystem_type == DRM_BUS_VIRTIO) {
+        strncat(path, "/..", PATH_MAX);
+        subsystem_type = get_subsystem_type(path);
+    }
+    return subsystem_type;
 #elif defined(__OpenBSD__) || defined(__DragonFly__)
     return DRM_BUS_PCI;
 #else
@@ -3710,7 +3720,6 @@ process_device(drmDevicePtr *device, const char *d_name,
 
     switch (subsystem_type) {
     case DRM_BUS_PCI:
-    case DRM_BUS_VIRTIO:
         return drmProcessPciDevice(device, node, node_type, maj, min,
                                    fetch_deviceinfo, flags);
     case DRM_BUS_USB:
