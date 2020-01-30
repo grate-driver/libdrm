@@ -194,12 +194,20 @@
 7300,	C9,	Radeon (TM) Pro Duo
 7300,	CB,	AMD Radeon (TM) R9 Fury Series
 7300,	CA,	AMD Radeon (TM) R9 Fury Series
+7312,	00,	AMD Radeon Pro W5700
 731F,	C0,	AMD Radeon RX 5700 XT 50th Anniversary
 731F,	C1,	AMD Radeon RX 5700 XT
+731F,	C2,	AMD Radeon RX 5600M
+731F,	C3,	AMD Radeon RX 5700M
 731F,	C4,	AMD Radeon RX 5700
 731F,	C5,	AMD Radeon RX 5700 XT
+731F,	CA,	AMD Radeon RX 5600 XT
+731F,	CB,	AMD Radeon RX 5600 OEM
 7340,	C1,	Radeon RX 5500M
+7340,	C5,	Radeon RX 5500 XT
 7340,	C7,	Radeon RX 5500
+7341,	00,	AMD Radeon Pro W5500
+7347,	00,	AMD Radeon Pro W5500M
 9874,	C4,	AMD Radeon R7 Graphics
 9874,	C5,	AMD Radeon R6 Graphics
 9874,	C6,	AMD Radeon R6 Graphics
