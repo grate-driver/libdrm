@@ -3611,6 +3611,46 @@ free_device:
     return ret;
 }
 
+#ifdef __linux__
+static int drm_usb_dev_path(int maj, int min, char *path, size_t len)
+{
+    char *value, *tmp_path, *slash;
+
+    snprintf(path, len, "/sys/dev/char/%d:%d/device", maj, min);
+
+    value = sysfs_uevent_get(path, "DEVTYPE");
+    if (!value)
+        return -ENOENT;
+
+    if (strcmp(value, "usb_device") == 0)
+        return 0;
+    if (strcmp(value, "usb_interface") != 0)
+        return -ENOTSUP;
+
+    /* The parent of a usb_interface is a usb_device */
+
+    tmp_path = realpath(path, NULL);
+    if (!tmp_path)
+        return -errno;
+
+    slash = strrchr(tmp_path, '/');
+    if (!slash) {
+        free(tmp_path);
+        return -EINVAL;
+    }
+
+    *slash = '\0';
+
+    if (snprintf(path, len, "%s", tmp_path) >= (int)len) {
+        free(tmp_path);
+        return -EINVAL;
+    }
+
+    free(tmp_path);
+    return 0;
+}
+#endif
+
 static int drmParseUsbBusInfo(int maj, int min, drmUsbBusInfoPtr info)
 {
 #ifdef __linux__
@@ -3618,7 +3658,9 @@ static int drmParseUsbBusInfo(int maj, int min, drmUsbBusInfoPtr info)
     unsigned int bus, dev;
     int ret;
 
-    snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device", maj, min);
+    ret = drm_usb_dev_path(maj, min, path, sizeof(path));
+    if (ret < 0)
+        return ret;
 
     value = sysfs_uevent_get(path, "BUSNUM");
     if (!value)
@@ -3657,7 +3699,9 @@ static int drmParseUsbDeviceInfo(int maj, int min, drmUsbDeviceInfoPtr info)
     unsigned int vendor, product;
     int ret;
 
-    snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device", maj, min);
+    ret = drm_usb_dev_path(maj, min, path, sizeof(path));
+    if (ret < 0)
+        return ret;
 
     value = sysfs_uevent_get(path, "PRODUCT");
     if (!value)
