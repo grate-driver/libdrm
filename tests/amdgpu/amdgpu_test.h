@@ -462,5 +462,13 @@ static inline bool asic_is_arcturus(uint32_t asic_id)
 	}
 }
 
+void amdgpu_test_exec_cs_helper_raw(amdgpu_device_handle device_handle,
+				    amdgpu_context_handle context_handle,
+				    unsigned ip_type, int instance, int pm4_dw,
+				    uint32_t *pm4_src, int res_cnt,
+				    amdgpu_bo_handle *resources,
+				    struct amdgpu_cs_ib_info *ib_info,
+				    struct amdgpu_cs_request *ibs_request,
+				    bool secure);
 
 #endif  /* #ifdef _AMDGPU_TEST_H_ */

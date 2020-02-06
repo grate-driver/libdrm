@@ -1298,7 +1298,7 @@ static void amdgpu_command_submission_compute(void)
  * pm4_src, resources, ib_info, and ibs_request
  * submit command stream described in ibs_request and wait for this IB accomplished
  */
-static void
+void
 amdgpu_test_exec_cs_helper_raw(amdgpu_device_handle device_handle,
 			       amdgpu_context_handle context_handle,
 			       unsigned ip_type, int instance, int pm4_dw,
