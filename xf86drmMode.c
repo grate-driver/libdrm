@@ -1594,3 +1594,38 @@ drmModeRevokeLease(int fd, uint32_t lessee_id)
 		return 0;
 	return -errno;
 }
+
+drm_public drmModeFB2Ptr
+drmModeGetFB2(int fd, uint32_t fb_id)
+{
+	struct drm_mode_fb_cmd2 get = {
+		.fb_id = fb_id,
+	};
+	drmModeFB2Ptr ret;
+	int err;
+
+	err = DRM_IOCTL(fd, DRM_IOCTL_MODE_GETFB2, &get);
+	if (err != 0)
+		return NULL;
+
+	ret = drmMalloc(sizeof(drmModeFB2));
+	if (!ret)
+		return NULL;
+
+	ret->fb_id = fb_id;
+	ret->width = get.width;
+	ret->height = get.height;
+	ret->pixel_format = get.pixel_format;
+	ret->flags = get.flags;
+	ret->modifier = get.modifier[0];
+	memcpy(ret->handles, get.handles, sizeof(uint32_t) * 4);
+	memcpy(ret->pitches, get.pitches, sizeof(uint32_t) * 4);
+	memcpy(ret->offsets, get.offsets, sizeof(uint32_t) * 4);
+
+	return ret;
+}
+
+drm_public void drmModeFreeFB2(drmModeFB2Ptr ptr)
+{
+	drmFree(ptr);
+}

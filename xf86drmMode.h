@@ -225,6 +225,19 @@ typedef struct _drmModeFB {
 	uint32_t handle;
 } drmModeFB, *drmModeFBPtr;
 
+typedef struct _drmModeFB2 {
+	uint32_t fb_id;
+	uint32_t width, height;
+	uint32_t pixel_format; /* fourcc code from drm_fourcc.h */
+	uint64_t modifier; /* applies to all buffers */
+	uint32_t flags;
+
+	/* per-plane GEM handle; may be duplicate entries for multiple planes */
+	uint32_t handles[4];
+	uint32_t pitches[4]; /* bytes */
+	uint32_t offsets[4]; /* bytes */
+} drmModeFB2, *drmModeFB2Ptr;
+
 typedef struct drm_clip_rect drmModeClip, *drmModeClipPtr;
 
 typedef struct _drmModePropertyBlob {
@@ -343,6 +356,7 @@ typedef struct _drmModePlaneRes {
 extern void drmModeFreeModeInfo( drmModeModeInfoPtr ptr );
 extern void drmModeFreeResources( drmModeResPtr ptr );
 extern void drmModeFreeFB( drmModeFBPtr ptr );
+extern void drmModeFreeFB2( drmModeFB2Ptr ptr );
 extern void drmModeFreeCrtc( drmModeCrtcPtr ptr );
 extern void drmModeFreeConnector( drmModeConnectorPtr ptr );
 extern void drmModeFreeEncoder( drmModeEncoderPtr ptr );
@@ -362,6 +376,7 @@ extern drmModeResPtr drmModeGetResources(int fd);
  * Retrieve information about framebuffer bufferId
  */
 extern drmModeFBPtr drmModeGetFB(int fd, uint32_t bufferId);
+extern drmModeFB2Ptr drmModeGetFB2(int fd, uint32_t bufferId);
 
 /**
  * Creates a new framebuffer with an buffer object as its scanout buffer.

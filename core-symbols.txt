@@ -112,6 +112,7 @@ drmModeFreeConnector
 drmModeFreeCrtc
 drmModeFreeEncoder
 drmModeFreeFB
+drmModeFreeFB2
 drmModeFreeModeInfo
 drmModeFreeObjectProperties
 drmModeFreePlane
@@ -124,6 +125,7 @@ drmModeGetConnectorCurrent
 drmModeGetCrtc
 drmModeGetEncoder
 drmModeGetFB
+drmModeGetFB2
 drmModeGetLease
 drmModeGetPlane
 drmModeGetPlaneResources
