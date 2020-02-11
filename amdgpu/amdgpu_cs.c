@@ -226,9 +226,11 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 	struct drm_amdgpu_cs_chunk_data *chunk_data;
 	struct drm_amdgpu_cs_chunk_dep *dependencies = NULL;
 	struct drm_amdgpu_cs_chunk_dep *sem_dependencies = NULL;
+	amdgpu_device_handle dev = context->dev;
 	struct list_head *sem_list;
 	amdgpu_semaphore_handle sem, tmp;
 	uint32_t i, size, sem_count = 0;
+	uint64_t seq_no;
 	bool user_fence;
 	int r = 0;
 
@@ -354,12 +356,12 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 		chunks[i].chunk_data = (uint64_t)(uintptr_t)sem_dependencies;
 	}
 
-	r = drmCommandWriteRead(context->dev->fd, DRM_AMDGPU_CS,
-				&cs, sizeof(cs));
+	r = amdgpu_cs_submit_raw2(dev, context, cs.in.bo_list_handle, cs.in.num_chunks,
+				  chunks, &seq_no);
 	if (r)
 		goto error_unlock;
 
-	ibs_request->seq_no = cs.out.handle;
+	ibs_request->seq_no = seq_no;
 	context->last_seq[ibs_request->ip_type][ibs_request->ip_instance][ibs_request->ring] = ibs_request->seq_no;
 error_unlock:
 	pthread_mutex_unlock(&context->sequence_mutex);
