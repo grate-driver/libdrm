@@ -221,7 +221,6 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 				struct amdgpu_cs_request *ibs_request)
 {
 	union drm_amdgpu_cs cs;
-	uint64_t *chunk_array;
 	struct drm_amdgpu_cs_chunk *chunks;
 	struct drm_amdgpu_cs_chunk_data *chunk_data;
 	struct drm_amdgpu_cs_chunk_dep *dependencies = NULL;
@@ -246,7 +245,6 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 
 	size = ibs_request->number_of_ibs + (user_fence ? 2 : 1) + 1;
 
-	chunk_array = alloca(sizeof(uint64_t) * size);
 	chunks = alloca(sizeof(struct drm_amdgpu_cs_chunk) * size);
 
 	size = ibs_request->number_of_ibs + (user_fence ? 1 : 0);
@@ -254,7 +252,6 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 	chunk_data = alloca(sizeof(struct drm_amdgpu_cs_chunk_data) * size);
 
 	memset(&cs, 0, sizeof(cs));
-	cs.in.chunks = (uint64_t)(uintptr_t)chunk_array;
 	cs.in.ctx_id = context->id;
 	if (ibs_request->resources)
 		cs.in.bo_list_handle = ibs_request->resources->handle;
@@ -262,7 +259,6 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 	/* IB chunks */
 	for (i = 0; i < ibs_request->number_of_ibs; i++) {
 		struct amdgpu_cs_ib_info *ib;
-		chunk_array[i] = (uint64_t)(uintptr_t)&chunks[i];
 		chunks[i].chunk_id = AMDGPU_CHUNK_ID_IB;
 		chunks[i].length_dw = sizeof(struct drm_amdgpu_cs_chunk_ib) / 4;
 		chunks[i].chunk_data = (uint64_t)(uintptr_t)&chunk_data[i];
@@ -284,7 +280,6 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 		i = cs.in.num_chunks++;
 
 		/* fence chunk */
-		chunk_array[i] = (uint64_t)(uintptr_t)&chunks[i];
 		chunks[i].chunk_id = AMDGPU_CHUNK_ID_FENCE;
 		chunks[i].length_dw = sizeof(struct drm_amdgpu_cs_chunk_fence) / 4;
 		chunks[i].chunk_data = (uint64_t)(uintptr_t)&chunk_data[i];
@@ -317,7 +312,6 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 		i = cs.in.num_chunks++;
 
 		/* dependencies chunk */
-		chunk_array[i] = (uint64_t)(uintptr_t)&chunks[i];
 		chunks[i].chunk_id = AMDGPU_CHUNK_ID_DEPENDENCIES;
 		chunks[i].length_dw = sizeof(struct drm_amdgpu_cs_chunk_dep) / 4
 			* ibs_request->number_of_dependencies;
@@ -350,7 +344,6 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 		i = cs.in.num_chunks++;
 
 		/* dependencies chunk */
-		chunk_array[i] = (uint64_t)(uintptr_t)&chunks[i];
 		chunks[i].chunk_id = AMDGPU_CHUNK_ID_DEPENDENCIES;
 		chunks[i].length_dw = sizeof(struct drm_amdgpu_cs_chunk_dep) / 4 * sem_count;
 		chunks[i].chunk_data = (uint64_t)(uintptr_t)sem_dependencies;
