@@ -295,7 +295,7 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 	}
 
 	if (ibs_request->number_of_dependencies) {
-		dependencies = malloc(sizeof(struct drm_amdgpu_cs_chunk_dep) *
+		dependencies = alloca(sizeof(struct drm_amdgpu_cs_chunk_dep) *
 			ibs_request->number_of_dependencies);
 		if (!dependencies) {
 			r = -ENOMEM;
@@ -326,7 +326,7 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 	LIST_FOR_EACH_ENTRY(sem, sem_list, list)
 		sem_count++;
 	if (sem_count) {
-		sem_dependencies = malloc(sizeof(struct drm_amdgpu_cs_chunk_dep) * sem_count);
+		sem_dependencies = alloca(sizeof(struct drm_amdgpu_cs_chunk_dep) * sem_count);
 		if (!sem_dependencies) {
 			r = -ENOMEM;
 			goto error_unlock;
@@ -363,8 +363,6 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 	context->last_seq[ibs_request->ip_type][ibs_request->ip_instance][ibs_request->ring] = ibs_request->seq_no;
 error_unlock:
 	pthread_mutex_unlock(&context->sequence_mutex);
-	free(dependencies);
-	free(sem_dependencies);
 	return r;
 }
 
