@@ -220,7 +220,6 @@ drm_public int amdgpu_cs_query_reset_state2(amdgpu_context_handle context,
 static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 				struct amdgpu_cs_request *ibs_request)
 {
-	union drm_amdgpu_cs cs;
 	struct drm_amdgpu_cs_chunk *chunks;
 	struct drm_amdgpu_cs_chunk_data *chunk_data;
 	struct drm_amdgpu_cs_chunk_dep *dependencies = NULL;
@@ -228,7 +227,7 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 	amdgpu_device_handle dev = context->dev;
 	struct list_head *sem_list;
 	amdgpu_semaphore_handle sem, tmp;
-	uint32_t i, size, sem_count = 0;
+	uint32_t i, size, num_chunks, bo_list_handle = 0, sem_count = 0;
 	uint64_t seq_no;
 	bool user_fence;
 	int r = 0;
@@ -251,11 +250,9 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 
 	chunk_data = alloca(sizeof(struct drm_amdgpu_cs_chunk_data) * size);
 
-	memset(&cs, 0, sizeof(cs));
-	cs.in.ctx_id = context->id;
 	if (ibs_request->resources)
-		cs.in.bo_list_handle = ibs_request->resources->handle;
-	cs.in.num_chunks = ibs_request->number_of_ibs;
+		bo_list_handle = ibs_request->resources->handle;
+	num_chunks = ibs_request->number_of_ibs;
 	/* IB chunks */
 	for (i = 0; i < ibs_request->number_of_ibs; i++) {
 		struct amdgpu_cs_ib_info *ib;
@@ -277,7 +274,7 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 	pthread_mutex_lock(&context->sequence_mutex);
 
 	if (user_fence) {
-		i = cs.in.num_chunks++;
+		i = num_chunks++;
 
 		/* fence chunk */
 		chunks[i].chunk_id = AMDGPU_CHUNK_ID_FENCE;
@@ -309,7 +306,7 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 			dep->handle = info->fence;
 		}
 
-		i = cs.in.num_chunks++;
+		i = num_chunks++;
 
 		/* dependencies chunk */
 		chunks[i].chunk_id = AMDGPU_CHUNK_ID_DEPENDENCIES;
@@ -341,7 +338,7 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 			amdgpu_cs_reset_sem(sem);
 			amdgpu_cs_unreference_sem(sem);
 		}
-		i = cs.in.num_chunks++;
+		i = num_chunks++;
 
 		/* dependencies chunk */
 		chunks[i].chunk_id = AMDGPU_CHUNK_ID_DEPENDENCIES;
@@ -349,7 +346,7 @@ static int amdgpu_cs_submit_one(amdgpu_context_handle context,
 		chunks[i].chunk_data = (uint64_t)(uintptr_t)sem_dependencies;
 	}
 
-	r = amdgpu_cs_submit_raw2(dev, context, cs.in.bo_list_handle, cs.in.num_chunks,
+	r = amdgpu_cs_submit_raw2(dev, context, bo_list_handle, num_chunks,
 				  chunks, &seq_no);
 	if (r)
 		goto error_unlock;
