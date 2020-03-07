@@ -26,7 +26,7 @@ if dep_cunit.found()
       'vce_tests.c', 'uvd_enc_tests.c', 'vcn_tests.c', 'deadlock_tests.c',
       'vm_tests.c', 'ras_tests.c', 'syncobj_tests.c',
     ),
-    dependencies : [dep_cunit, dep_threads],
+    dependencies : [dep_cunit, dep_threads, dep_atomic_ops],
     include_directories : [inc_root, inc_drm, include_directories('../../amdgpu')],
     link_with : [libdrm, libdrm_amdgpu],
     install : with_install_tests,
