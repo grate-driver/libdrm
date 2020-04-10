@@ -2013,6 +2013,11 @@ int main(int argc, char **argv)
 	if (!args)
 		encoders = connectors = crtcs = planes = framebuffers = 1;
 
+	if (test_vsync && !count) {
+		fprintf(stderr, "page flipping requires at least one -s option.\n");
+		return -1;
+	}
+
 	dev.fd = util_open(device, module);
 	if (dev.fd < 0)
 		return -1;
@@ -2025,11 +2030,6 @@ int main(int argc, char **argv)
 	}
 
 	dev.use_atomic = use_atomic;
-
-	if (test_vsync && !count) {
-		fprintf(stderr, "page flipping requires at least one -s option.\n");
-		return -1;
-	}
 
 	dev.resources = get_resources(&dev);
 	if (!dev.resources) {
