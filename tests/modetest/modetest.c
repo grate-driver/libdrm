@@ -1153,10 +1153,32 @@ static void set_gamma(struct device *dev, unsigned crtc_id, unsigned fourcc)
 	}
 }
 
+static int
+bo_fb_create(int fd, unsigned int fourcc, const uint32_t w, const uint32_t h,
+             enum util_fill_pattern pat, struct bo **out_bo, unsigned int *out_fb_id)
+{
+	uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
+	struct bo *bo;
+	unsigned int fb_id;
+
+	bo = bo_create(fd, fourcc, w, h, handles, pitches, offsets, pat);
+
+	if (bo == NULL)
+		return -1;
+
+	if (drmModeAddFB2(fd, w, h, fourcc, handles, pitches, offsets, &fb_id, 0)) {
+		fprintf(stderr, "failed to add fb (%ux%u): %s\n", w, h, strerror(errno));
+		bo_destroy(bo);
+		return -1;
+	}
+	*out_bo = bo;
+	*out_fb_id = fb_id;
+	return 0;
+}
+
 static int atomic_set_plane(struct device *dev, struct plane_arg *p,
 							int pattern, bool update)
 {
-	uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
 	struct bo *plane_bo;
 	int crtc_x, crtc_y, crtc_w, crtc_h;
 	struct crtc *crtc = NULL;
@@ -1186,17 +1208,9 @@ static int atomic_set_plane(struct device *dev, struct plane_arg *p,
 	p->old_bo = p->bo;
 
 	if (!plane_bo) {
-		plane_bo = bo_create(dev->fd, p->fourcc, p->w, p->h,
-				     handles, pitches, offsets, pattern);
-
-		if (plane_bo == NULL)
+		if (bo_fb_create(dev->fd, p->fourcc, p->w, p->h,
+                         pattern, &plane_bo, &p->fb_id))
 			return -1;
-
-		if (drmModeAddFB2(dev->fd, p->w, p->h, p->fourcc,
-			handles, pitches, offsets, &p->fb_id, 0)) {
-			fprintf(stderr, "failed to add fb: %s\n", strerror(errno));
-			return -1;
-		}
 	}
 
 	p->bo = plane_bo;
@@ -1232,10 +1246,7 @@ static int atomic_set_plane(struct device *dev, struct plane_arg *p,
 static int set_plane(struct device *dev, struct plane_arg *p)
 {
 	drmModePlane *ovr;
-	uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
 	uint32_t plane_id;
-	struct bo *plane_bo;
-	uint32_t plane_flags = 0;
 	int crtc_x, crtc_y, crtc_w, crtc_h;
 	struct crtc *crtc = NULL;
 	unsigned int pipe;
@@ -1286,19 +1297,10 @@ static int set_plane(struct device *dev, struct plane_arg *p)
 	fprintf(stderr, "testing %dx%d@%s overlay plane %u\n",
 		p->w, p->h, p->format_str, plane_id);
 
-	plane_bo = bo_create(dev->fd, p->fourcc, p->w, p->h, handles,
-			     pitches, offsets, secondary_fill);
-	if (plane_bo == NULL)
-		return -1;
-
-	p->bo = plane_bo;
-
 	/* just use single plane format for now.. */
-	if (drmModeAddFB2(dev->fd, p->w, p->h, p->fourcc,
-			handles, pitches, offsets, &p->fb_id, plane_flags)) {
-		fprintf(stderr, "failed to add fb: %s\n", strerror(errno));
+	if (bo_fb_create(dev->fd, p->fourcc, p->w, p->h,
+	                 secondary_fill, &p->bo, &p->fb_id))
 		return -1;
-	}
 
 	crtc_w = p->w * p->scale;
 	crtc_h = p->h * p->scale;
@@ -1313,7 +1315,7 @@ static int set_plane(struct device *dev, struct plane_arg *p)
 
 	/* note src coords (last 4 args) are in Q16 format */
 	if (drmModeSetPlane(dev->fd, plane_id, crtc->crtc->crtc_id, p->fb_id,
-			    plane_flags, crtc_x, crtc_y, crtc_w, crtc_h,
+			    0, crtc_x, crtc_y, crtc_w, crtc_h,
 			    0, 0, p->w << 16, p->h << 16)) {
 		fprintf(stderr, "failed to enable plane: %s\n",
 			strerror(errno));
@@ -1453,9 +1455,6 @@ static void atomic_clear_mode(struct device *dev, struct pipe_arg *pipes, unsign
 
 static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int count)
 {
-	uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
-	unsigned int fb_id;
-	struct bo *bo;
 	unsigned int i;
 	unsigned int j;
 	int ret, x;
@@ -1476,23 +1475,9 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 			dev->mode.height = pipe->mode->vdisplay;
 	}
 
-	bo = bo_create(dev->fd, pipes[0].fourcc, dev->mode.width,
-		       dev->mode.height, handles, pitches, offsets,
-		       primary_fill);
-	if (bo == NULL)
+	if (bo_fb_create(dev->fd, pipes[0].fourcc, dev->mode.width, dev->mode.height,
+	                 primary_fill, &dev->mode.bo, &dev->mode.fb_id))
 		return;
-
-	dev->mode.bo = bo;
-
-	ret = drmModeAddFB2(dev->fd, dev->mode.width, dev->mode.height,
-			    pipes[0].fourcc, handles, pitches, offsets, &fb_id, 0);
-	if (ret) {
-		fprintf(stderr, "failed to add fb (%ux%u): %s\n",
-			dev->mode.width, dev->mode.height, strerror(errno));
-		return;
-	}
-
-	dev->mode.fb_id = fb_id;
 
 	x = 0;
 	for (i = 0; i < count; i++) {
@@ -1508,12 +1493,12 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 			printf("%s, ", pipe->cons[j]);
 		printf("crtc %d\n", pipe->crtc->crtc->crtc_id);
 
-		ret = drmModeSetCrtc(dev->fd, pipe->crtc->crtc->crtc_id, fb_id,
+		ret = drmModeSetCrtc(dev->fd, pipe->crtc->crtc->crtc_id, dev->mode.fb_id,
 				     x, 0, pipe->con_ids, pipe->num_cons,
 				     pipe->mode);
 
 		/* XXX: Actually check if this is needed */
-		drmModeDirtyFB(dev->fd, fb_id, NULL, 0);
+		drmModeDirtyFB(dev->fd, dev->mode.fb_id, NULL, 0);
 
 		x += pipe->mode->hdisplay;
 
@@ -1591,26 +1576,15 @@ static void clear_cursors(struct device *dev)
 
 static void test_page_flip(struct device *dev, struct pipe_arg *pipes, unsigned int count)
 {
-	uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
 	unsigned int other_fb_id;
 	struct bo *other_bo;
 	drmEventContext evctx;
 	unsigned int i;
 	int ret;
 
-	other_bo = bo_create(dev->fd, pipes[0].fourcc, dev->mode.width,
-			     dev->mode.height, handles, pitches, offsets,
-			     UTIL_PATTERN_PLAIN);
-	if (other_bo == NULL)
+	if (bo_fb_create(dev->fd, pipes[0].fourcc, dev->mode.width, dev->mode.height,
+	                 UTIL_PATTERN_PLAIN, &other_bo, &other_fb_id))
 		return;
-
-	ret = drmModeAddFB2(dev->fd, dev->mode.width, dev->mode.height,
-			    pipes[0].fourcc, handles, pitches, offsets,
-			    &other_fb_id, 0);
-	if (ret) {
-		fprintf(stderr, "failed to add fb: %s\n", strerror(errno));
-		goto err;
-	}
 
 	for (i = 0; i < count; i++) {
 		struct pipe_arg *pipe = &pipes[i];
@@ -1676,7 +1650,6 @@ static void test_page_flip(struct device *dev, struct pipe_arg *pipes, unsigned 
 
 err_rmfb:
 	drmModeRmFB(dev->fd, other_fb_id);
-err:
 	bo_destroy(other_bo);
 }
 
