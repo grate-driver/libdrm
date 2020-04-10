@@ -2022,11 +2022,13 @@ int main(int argc, char **argv)
 	if (dev.fd < 0)
 		return -1;
 
-	ret = drmSetClientCap(dev.fd, DRM_CLIENT_CAP_ATOMIC, 1);
-	if (ret && use_atomic) {
-		fprintf(stderr, "no atomic modesetting support: %s\n", strerror(errno));
-		drmClose(dev.fd);
-		return -1;
+	if (use_atomic) {
+		ret = drmSetClientCap(dev.fd, DRM_CLIENT_CAP_ATOMIC, 1);
+		if (ret) {
+			fprintf(stderr, "no atomic modesetting support: %s\n", strerror(errno));
+			drmClose(dev.fd);
+			return -1;
+		}
 	}
 
 	dev.use_atomic = use_atomic;
