@@ -1950,12 +1950,15 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'a':
 			use_atomic = 1;
+			/* Preserve the default behaviour of dumping all information. */
+			args--;
 			break;
 		case 'c':
 			connectors = 1;
 			break;
 		case 'D':
 			device = optarg;
+			/* Preserve the default behaviour of dumping all information. */
 			args--;
 			break;
 		case 'd':
@@ -2033,7 +2036,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (!args || (args == 1 && use_atomic))
+	/* Dump all the details when no* arguments are provided. */
+	if (!args)
 		encoders = connectors = crtcs = planes = framebuffers = 1;
 
 	dev.fd = util_open(device, module);
