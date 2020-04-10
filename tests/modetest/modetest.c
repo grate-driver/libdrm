@@ -1865,33 +1865,6 @@ static void usage(char *name)
 	exit(0);
 }
 
-static int page_flipping_supported(void)
-{
-	/*FIXME: generic ioctl needed? */
-	return 1;
-#if 0
-	int ret, value;
-	struct drm_i915_getparam gp;
-
-	gp.param = I915_PARAM_HAS_PAGEFLIPPING;
-	gp.value = &value;
-
-	ret = drmCommandWriteRead(fd, DRM_I915_GETPARAM, &gp, sizeof(gp));
-	if (ret) {
-		fprintf(stderr, "drm_i915_getparam: %m\n");
-		return 0;
-	}
-
-	return *gp.value;
-#endif
-}
-
-static int cursor_supported(void)
-{
-	/*FIXME: generic ioctl needed? */
-	return 1;
-}
-
 static int pipe_resolve_connectors(struct device *dev, struct pipe_arg *pipe)
 {
 	drmModeConnector *connector;
@@ -2053,18 +2026,8 @@ int main(int argc, char **argv)
 
 	dev.use_atomic = use_atomic;
 
-	if (test_vsync && !page_flipping_supported()) {
-		fprintf(stderr, "page flipping not supported by drm.\n");
-		return -1;
-	}
-
 	if (test_vsync && !count) {
 		fprintf(stderr, "page flipping requires at least one -s option.\n");
-		return -1;
-	}
-
-	if (test_cursor && !cursor_supported()) {
-		fprintf(stderr, "hw cursor not supported by drm.\n");
 		return -1;
 	}
 
