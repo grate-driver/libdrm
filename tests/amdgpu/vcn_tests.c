@@ -333,6 +333,7 @@ static void amdgpu_cs_vcn_dec_decode(void)
 			avc_decode_msg, sizeof(avc_decode_msg));
 
 	dec += 4*1024;
+	memcpy(dec, feedback_msg, sizeof(feedback_msg));
 	dec += 4*1024;
 	memcpy(dec, uvd_it_scaling_table, sizeof(uvd_it_scaling_table));
 
