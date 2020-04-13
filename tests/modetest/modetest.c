@@ -1437,6 +1437,10 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 	for (i = 0; i < count; i++) {
 		struct pipe_arg *pipe = &pipes[i];
 
+		ret = pipe_resolve_connectors(dev, pipe);
+		if (ret < 0)
+			return;
+
 		ret = pipe_find_crtc_and_mode(dev, pipe);
 		if (ret < 0)
 			continue;
@@ -1991,14 +1995,6 @@ int main(int argc, char **argv)
 	if (!dev.resources) {
 		drmClose(dev.fd);
 		return 1;
-	}
-
-	for (i = 0; i < count; i++) {
-		if (pipe_resolve_connectors(&dev, &pipe_args[i]) < 0) {
-			free_resources(dev.resources);
-			drmClose(dev.fd);
-			return 1;
-		}
 	}
 
 #define dump_resource(dev, res) if (res) dump_##res(dev)
