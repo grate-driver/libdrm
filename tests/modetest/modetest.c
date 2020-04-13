@@ -1403,11 +1403,10 @@ static void clear_planes(struct device *dev, struct plane_arg *p, unsigned int c
 	}
 }
 
-static void atomic_set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int count)
+static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int count)
 {
-	unsigned int i;
-	unsigned int j;
-	int ret;
+	unsigned int i, j;
+	int ret, x = 0;
 
 	for (i = 0; i < count; i++) {
 		struct pipe_arg *pipe = &pipes[i];
@@ -1415,6 +1414,23 @@ static void atomic_set_mode(struct device *dev, struct pipe_arg *pipes, unsigned
 		ret = pipe_find_crtc_and_mode(dev, pipe);
 		if (ret < 0)
 			continue;
+	}
+
+	if (!dev->use_atomic) {
+		for (i = 0; i < count; i++) {
+			struct pipe_arg *pipe = &pipes[i];
+
+			if (pipe->mode == NULL)
+				continue;
+
+			dev->mode.width += pipe->mode->hdisplay;
+			if (dev->mode.height < pipe->mode->vdisplay)
+				dev->mode.height = pipe->mode->vdisplay;
+		}
+
+		if (bo_fb_create(dev->fd, pipes[0].fourcc, dev->mode.width, dev->mode.height,
+			             primary_fill, &dev->mode.bo, &dev->mode.fb_id))
+			return;
 	}
 
 	for (i = 0; i < count; i++) {
@@ -1428,13 +1444,32 @@ static void atomic_set_mode(struct device *dev, struct pipe_arg *pipes, unsigned
 		       pipe->mode->name, mode_vrefresh(pipe->mode));
 		for (j = 0; j < pipe->num_cons; ++j) {
 			printf("%s, ", pipe->cons[j]);
-			add_property(dev, pipe->con_ids[j], "CRTC_ID", pipe->crtc_id);
+			if (dev->use_atomic)
+				add_property(dev, pipe->con_ids[j], "CRTC_ID", pipe->crtc_id);
 		}
 		printf("crtc %d\n", pipe->crtc_id);
 
-		drmModeCreatePropertyBlob(dev->fd, pipe->mode, sizeof(*pipe->mode), &blob_id);
-		add_property(dev, pipe->crtc_id, "MODE_ID", blob_id);
-		add_property(dev, pipe->crtc_id, "ACTIVE", 1);
+		if (!dev->use_atomic) {
+			ret = drmModeSetCrtc(dev->fd, pipe->crtc_id, dev->mode.fb_id,
+								 x, 0, pipe->con_ids, pipe->num_cons,
+								 pipe->mode);
+
+			/* XXX: Actually check if this is needed */
+			drmModeDirtyFB(dev->fd, dev->mode.fb_id, NULL, 0);
+
+			x += pipe->mode->hdisplay;
+
+			if (ret) {
+				fprintf(stderr, "failed to set mode: %s\n", strerror(errno));
+				return;
+			}
+
+			set_gamma(dev, pipe->crtc_id, pipe->fourcc);
+		} else {
+			drmModeCreatePropertyBlob(dev->fd, pipe->mode, sizeof(*pipe->mode), &blob_id);
+			add_property(dev, pipe->crtc_id, "MODE_ID", blob_id);
+			add_property(dev, pipe->crtc_id, "ACTIVE", 1);
+		}
 	}
 }
 
@@ -1454,64 +1489,6 @@ static void atomic_clear_mode(struct device *dev, struct pipe_arg *pipes, unsign
 
 		add_property(dev, pipe->crtc_id, "MODE_ID", 0);
 		add_property(dev, pipe->crtc_id, "ACTIVE", 0);
-	}
-}
-
-static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int count)
-{
-	unsigned int i;
-	unsigned int j;
-	int ret, x;
-
-	dev->mode.width = 0;
-	dev->mode.height = 0;
-	dev->mode.fb_id = 0;
-
-	for (i = 0; i < count; i++) {
-		struct pipe_arg *pipe = &pipes[i];
-
-		ret = pipe_find_crtc_and_mode(dev, pipe);
-		if (ret < 0)
-			continue;
-
-		dev->mode.width += pipe->mode->hdisplay;
-		if (dev->mode.height < pipe->mode->vdisplay)
-			dev->mode.height = pipe->mode->vdisplay;
-	}
-
-	if (bo_fb_create(dev->fd, pipes[0].fourcc, dev->mode.width, dev->mode.height,
-	                 primary_fill, &dev->mode.bo, &dev->mode.fb_id))
-		return;
-
-	x = 0;
-	for (i = 0; i < count; i++) {
-		struct pipe_arg *pipe = &pipes[i];
-
-		if (pipe->mode == NULL)
-			continue;
-
-		printf("setting mode %s-%.2fHz@%s on connectors ",
-		       pipe->mode->name, mode_vrefresh(pipe->mode),
-		       pipe->format_str);
-		for (j = 0; j < pipe->num_cons; ++j)
-			printf("%s, ", pipe->cons[j]);
-		printf("crtc %d\n", pipe->crtc_id);
-
-		ret = drmModeSetCrtc(dev->fd, pipe->crtc_id, dev->mode.fb_id,
-				     x, 0, pipe->con_ids, pipe->num_cons,
-				     pipe->mode);
-
-		/* XXX: Actually check if this is needed */
-		drmModeDirtyFB(dev->fd, dev->mode.fb_id, NULL, 0);
-
-		x += pipe->mode->hdisplay;
-
-		if (ret) {
-			fprintf(stderr, "failed to set mode: %s\n", strerror(errno));
-			return;
-		}
-
-		set_gamma(dev, pipe->crtc_id, pipe->fourcc);
 	}
 }
 
@@ -2047,7 +2024,7 @@ int main(int argc, char **argv)
 				return 1;
 			}
 
-			atomic_set_mode(&dev, pipe_args, count);
+			set_mode(&dev, pipe_args, count);
 			atomic_set_planes(&dev, plane_args, plane_count, false);
 
 			ret = drmModeAtomicCommit(dev.fd, dev.req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
