@@ -971,6 +971,7 @@ static int pipe_find_crtc_and_mode(struct device *dev, struct pipe_arg *pipe)
 		pipe->crtc = get_crtc_by_id(dev, pipe->crtc_id);
 	} else {
 		pipe->crtc = pipe_find_crtc(dev, pipe);
+		pipe->crtc_id = pipe->crtc->crtc->crtc_id;
 	}
 
 	if (!pipe->crtc) {
@@ -1084,7 +1085,7 @@ page_flip_handler(int fd, unsigned int frame,
 	else
 		new_fb_id = pipe->fb_id[0];
 
-	drmModePageFlip(fd, pipe->crtc->crtc->crtc_id, new_fb_id,
+	drmModePageFlip(fd, pipe->crtc_id, new_fb_id,
 			DRM_MODE_PAGE_FLIP_EVENT, pipe);
 	pipe->current_fb_id = new_fb_id;
 	pipe->swap_count++;
@@ -1293,7 +1294,7 @@ static int set_plane(struct device *dev, struct plane_arg *p)
 
 	if (i == dev->resources->count_planes) {
 		fprintf(stderr, "no unused plane available for CRTC %u\n",
-			crtc->crtc->crtc_id);
+			p->crtc_id);
 		return -1;
 	}
 
@@ -1317,7 +1318,7 @@ static int set_plane(struct device *dev, struct plane_arg *p)
 	}
 
 	/* note src coords (last 4 args) are in Q16 format */
-	if (drmModeSetPlane(dev->fd, plane_id, crtc->crtc->crtc_id, p->fb_id,
+	if (drmModeSetPlane(dev->fd, plane_id, p->crtc_id, p->fb_id,
 			    0, crtc_x, crtc_y, crtc_w, crtc_h,
 			    0, 0, p->w << 16, p->h << 16)) {
 		fprintf(stderr, "failed to enable plane: %s\n",
@@ -1325,7 +1326,7 @@ static int set_plane(struct device *dev, struct plane_arg *p)
 		return -1;
 	}
 
-	ovr->crtc_id = crtc->crtc->crtc_id;
+	ovr->crtc_id = p->crtc_id;
 
 	return 0;
 }
@@ -1427,13 +1428,13 @@ static void atomic_set_mode(struct device *dev, struct pipe_arg *pipes, unsigned
 		       pipe->mode->name, mode_vrefresh(pipe->mode));
 		for (j = 0; j < pipe->num_cons; ++j) {
 			printf("%s, ", pipe->cons[j]);
-			add_property(dev, pipe->con_ids[j], "CRTC_ID", pipe->crtc->crtc->crtc_id);
+			add_property(dev, pipe->con_ids[j], "CRTC_ID", pipe->crtc_id);
 		}
-		printf("crtc %d\n", pipe->crtc->crtc->crtc_id);
+		printf("crtc %d\n", pipe->crtc_id);
 
 		drmModeCreatePropertyBlob(dev->fd, pipe->mode, sizeof(*pipe->mode), &blob_id);
-		add_property(dev, pipe->crtc->crtc->crtc_id, "MODE_ID", blob_id);
-		add_property(dev, pipe->crtc->crtc->crtc_id, "ACTIVE", 1);
+		add_property(dev, pipe->crtc_id, "MODE_ID", blob_id);
+		add_property(dev, pipe->crtc_id, "ACTIVE", 1);
 	}
 }
 
@@ -1451,8 +1452,8 @@ static void atomic_clear_mode(struct device *dev, struct pipe_arg *pipes, unsign
 		for (j = 0; j < pipe->num_cons; ++j)
 			add_property(dev, pipe->con_ids[j], "CRTC_ID",0);
 
-		add_property(dev, pipe->crtc->crtc->crtc_id, "MODE_ID", 0);
-		add_property(dev, pipe->crtc->crtc->crtc_id, "ACTIVE", 0);
+		add_property(dev, pipe->crtc_id, "MODE_ID", 0);
+		add_property(dev, pipe->crtc_id, "ACTIVE", 0);
 	}
 }
 
@@ -1494,9 +1495,9 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 		       pipe->format_str);
 		for (j = 0; j < pipe->num_cons; ++j)
 			printf("%s, ", pipe->cons[j]);
-		printf("crtc %d\n", pipe->crtc->crtc->crtc_id);
+		printf("crtc %d\n", pipe->crtc_id);
 
-		ret = drmModeSetCrtc(dev->fd, pipe->crtc->crtc->crtc_id, dev->mode.fb_id,
+		ret = drmModeSetCrtc(dev->fd, pipe->crtc_id, dev->mode.fb_id,
 				     x, 0, pipe->con_ids, pipe->num_cons,
 				     pipe->mode);
 
@@ -1510,7 +1511,7 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 			return;
 		}
 
-		set_gamma(dev, pipe->crtc->crtc->crtc_id, pipe->fourcc);
+		set_gamma(dev, pipe->crtc_id, pipe->fourcc);
 	}
 }
 
@@ -1556,7 +1557,7 @@ static void set_cursors(struct device *dev, struct pipe_arg *pipes, unsigned int
 	for (i = 0; i < count; i++) {
 		struct pipe_arg *pipe = &pipes[i];
 		ret = cursor_init(dev->fd, handles[0],
-				pipe->crtc->crtc->crtc_id,
+				pipe->crtc_id,
 				pipe->mode->hdisplay, pipe->mode->vdisplay,
 				cw, ch);
 		if (ret) {
@@ -1595,7 +1596,7 @@ static void test_page_flip(struct device *dev, struct pipe_arg *pipes, unsigned 
 		if (pipe->mode == NULL)
 			continue;
 
-		ret = drmModePageFlip(dev->fd, pipe->crtc->crtc->crtc_id,
+		ret = drmModePageFlip(dev->fd, pipe->crtc_id,
 				      other_fb_id, DRM_MODE_PAGE_FLIP_EVENT,
 				      pipe);
 		if (ret) {
