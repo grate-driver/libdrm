@@ -740,17 +740,31 @@ error:
 	return NULL;
 }
 
-static int get_crtc_index(struct device *dev, uint32_t id)
+static struct crtc *get_crtc_by_id(struct device *dev, uint32_t id)
 {
 	int i;
 
 	for (i = 0; i < dev->resources->count_crtcs; ++i) {
 		drmModeCrtc *crtc = dev->resources->crtcs[i].crtc;
 		if (crtc && crtc->crtc_id == id)
-			return i;
+			return &dev->resources->crtcs[i];
 	}
 
-	return -1;
+	return NULL;
+}
+
+static uint32_t get_crtc_mask(struct device *dev, struct crtc *crtc)
+{
+	unsigned int i;
+
+	for (i = 0; i < (unsigned int)dev->resources->count_crtcs; i++) {
+		if (crtc->crtc->crtc_id == dev->resources->crtcs[i].crtc->crtc_id)
+			return 1 << i;
+	}
+    /* Unreachable: crtc->crtc is one of resources->crtcs[] */
+    /* Don't return zero or static analysers will complain */
+	abort();
+	return 0;
 }
 
 static drmModeConnector *get_connector_by_name(struct device *dev, const char *name)
@@ -891,7 +905,7 @@ static struct crtc *pipe_find_crtc(struct device *dev, struct pipe_arg *pipe)
 		uint32_t crtcs_for_connector = 0;
 		drmModeConnector *connector;
 		drmModeEncoder *encoder;
-		int idx;
+		struct crtc *crtc;
 
 		connector = get_connector_by_id(dev, pipe->con_ids[i]);
 		if (!connector)
@@ -903,10 +917,10 @@ static struct crtc *pipe_find_crtc(struct device *dev, struct pipe_arg *pipe)
 				continue;
 
 			crtcs_for_connector |= encoder->possible_crtcs;
-
-			idx = get_crtc_index(dev, encoder->crtc_id);
-			if (idx >= 0)
-				active_crtcs |= 1 << idx;
+			crtc = get_crtc_by_id(dev, encoder->crtc_id);
+			if (!crtc)
+				continue;
+			active_crtcs |= get_crtc_mask(dev, crtc);
 		}
 
 		possible_crtcs &= crtcs_for_connector;
@@ -954,14 +968,7 @@ static int pipe_find_crtc_and_mode(struct device *dev, struct pipe_arg *pipe)
 	 * locate a CRTC that can be attached to all the connectors.
 	 */
 	if (pipe->crtc_id != (uint32_t)-1) {
-		for (i = 0; i < dev->resources->count_crtcs; i++) {
-			struct crtc *crtc = &dev->resources->crtcs[i];
-
-			if (pipe->crtc_id == crtc->crtc->crtc_id) {
-				pipe->crtc = crtc;
-				break;
-			}
-		}
+		pipe->crtc = get_crtc_by_id(dev, pipe->crtc_id);
 	} else {
 		pipe->crtc = pipe_find_crtc(dev, pipe);
 	}
@@ -1193,19 +1200,12 @@ static int atomic_set_plane(struct device *dev, struct plane_arg *p,
 	struct bo *plane_bo;
 	int crtc_x, crtc_y, crtc_w, crtc_h;
 	struct crtc *crtc = NULL;
-	unsigned int i;
 	unsigned int old_fb_id;
 
 	/* Find an unused plane which can be connected to our CRTC. Find the
 	 * CRTC index first, then iterate over available planes.
 	 */
-	for (i = 0; i < (unsigned int)dev->resources->count_crtcs; i++) {
-		if (p->crtc_id == dev->resources->crtcs[i].crtc->crtc_id) {
-			crtc = &dev->resources->crtcs[i];
-			break;
-		}
-	}
-
+	crtc = get_crtc_by_id(dev, p->crtc_id);
 	if (!crtc) {
 		fprintf(stderr, "CRTC %u not found\n", p->crtc_id);
 		return -1;
@@ -1260,25 +1260,17 @@ static int set_plane(struct device *dev, struct plane_arg *p)
 	uint32_t plane_id;
 	int crtc_x, crtc_y, crtc_w, crtc_h;
 	struct crtc *crtc = NULL;
-	unsigned int pipe;
-	unsigned int i;
+	unsigned int i, crtc_mask;
 
 	/* Find an unused plane which can be connected to our CRTC. Find the
 	 * CRTC index first, then iterate over available planes.
 	 */
-	for (i = 0; i < (unsigned int)dev->resources->count_crtcs; i++) {
-		if (p->crtc_id == dev->resources->crtcs[i].crtc->crtc_id) {
-			crtc = &dev->resources->crtcs[i];
-			pipe = i;
-			break;
-		}
-	}
-
+	crtc = get_crtc_by_id(dev, p->crtc_id);
 	if (!crtc) {
 		fprintf(stderr, "CRTC %u not found\n", p->crtc_id);
 		return -1;
 	}
-
+	crtc_mask = get_crtc_mask(dev, crtc);
 	plane_id = p->plane_id;
 
 	for (i = 0; i < dev->resources->count_planes; i++) {
@@ -1292,7 +1284,7 @@ static int set_plane(struct device *dev, struct plane_arg *p)
 		if (!format_support(ovr, p->fourcc))
 			continue;
 
-		if ((ovr->possible_crtcs & (1 << pipe)) &&
+		if ((ovr->possible_crtcs & crtc_mask) &&
 		    (ovr->crtc_id == 0 || ovr->crtc_id == p->crtc_id)) {
 			plane_id = ovr->plane_id;
 			break;
