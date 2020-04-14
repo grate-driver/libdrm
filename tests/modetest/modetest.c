@@ -2150,6 +2150,7 @@ int main(int argc, char **argv)
 	}
 
 	free_resources(dev.resources);
+	drmClose(dev.fd);
 
 	return 0;
 }
