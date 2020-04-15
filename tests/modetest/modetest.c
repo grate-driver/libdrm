@@ -1403,6 +1403,32 @@ static void clear_planes(struct device *dev, struct plane_arg *p, unsigned int c
 	}
 }
 
+static int pipe_resolve_connectors(struct device *dev, struct pipe_arg *pipe)
+{
+	drmModeConnector *connector;
+	unsigned int i;
+	uint32_t id;
+	char *endp;
+
+	for (i = 0; i < pipe->num_cons; i++) {
+		id = strtoul(pipe->cons[i], &endp, 10);
+		if (endp == pipe->cons[i]) {
+			connector = get_connector_by_name(dev, pipe->cons[i]);
+			if (!connector) {
+				fprintf(stderr, "no connector named '%s'\n",
+					pipe->cons[i]);
+				return -ENODEV;
+			}
+
+			id = connector->connector_id;
+		}
+
+		pipe->con_ids[i] = id;
+	}
+
+	return 0;
+}
+
 static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int count)
 {
 	unsigned int i, j;
@@ -1817,32 +1843,6 @@ static void usage(char *name)
 
 	fprintf(stderr, "\n\tDefault is to dump all info.\n");
 	exit(0);
-}
-
-static int pipe_resolve_connectors(struct device *dev, struct pipe_arg *pipe)
-{
-	drmModeConnector *connector;
-	unsigned int i;
-	uint32_t id;
-	char *endp;
-
-	for (i = 0; i < pipe->num_cons; i++) {
-		id = strtoul(pipe->cons[i], &endp, 10);
-		if (endp == pipe->cons[i]) {
-			connector = get_connector_by_name(dev, pipe->cons[i]);
-			if (!connector) {
-				fprintf(stderr, "no connector named '%s'\n",
-					pipe->cons[i]);
-				return -ENODEV;
-			}
-
-			id = connector->connector_id;
-		}
-
-		pipe->con_ids[i] = id;
-	}
-
-	return 0;
 }
 
 static char optstr[] = "acdD:efF:M:P:ps:Cvw:";
