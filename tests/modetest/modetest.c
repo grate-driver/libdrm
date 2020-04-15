@@ -1348,6 +1348,41 @@ static void atomic_set_planes(struct device *dev, struct plane_arg *p,
 	}
 }
 
+static void
+atomic_test_page_flip(struct device *dev, struct pipe_arg *pipe_args,
+              struct plane_arg *plane_args, unsigned int plane_count)
+{
+    int ret;
+
+	gettimeofday(&pipe_args->start, NULL);
+	pipe_args->swap_count = 0;
+
+	while (true) {
+		drmModeAtomicFree(dev->req);
+		dev->req = drmModeAtomicAlloc();
+		atomic_set_planes(dev, plane_args, plane_count, true);
+
+		ret = drmModeAtomicCommit(dev->fd, dev->req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+		if (ret) {
+			fprintf(stderr, "Atomic Commit failed [2]\n");
+			return;
+		}
+
+		pipe_args->swap_count++;
+		if (pipe_args->swap_count == 60) {
+			struct timeval end;
+			double t;
+
+			gettimeofday(&end, NULL);
+			t = end.tv_sec + end.tv_usec * 1e-6 -
+			    (pipe_args->start.tv_sec + pipe_args->start.tv_usec * 1e-6);
+			fprintf(stderr, "freq: %.02fHz\n", pipe_args->swap_count / t);
+			pipe_args->swap_count = 0;
+			pipe_args->start = end;
+		}
+	}
+}
+
 static void atomic_clear_planes(struct device *dev, struct plane_arg *p, unsigned int count)
 {
 	unsigned int i;
@@ -2029,33 +2064,8 @@ int main(int argc, char **argv)
 				return 1;
 			}
 
-			gettimeofday(&pipe_args->start, NULL);
-			pipe_args->swap_count = 0;
-
-			while (test_vsync) {
-				drmModeAtomicFree(dev.req);
-				dev.req = drmModeAtomicAlloc();
-				atomic_set_planes(&dev, plane_args, plane_count, true);
-
-				ret = drmModeAtomicCommit(dev.fd, dev.req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
-				if (ret) {
-					fprintf(stderr, "Atomic Commit failed [2]\n");
-					return 1;
-				}
-
-				pipe_args->swap_count++;
-				if (pipe_args->swap_count == 60) {
-					struct timeval end;
-					double t;
-
-					gettimeofday(&end, NULL);
-					t = end.tv_sec + end.tv_usec * 1e-6 -
-				    (pipe_args->start.tv_sec + pipe_args->start.tv_usec * 1e-6);
-					fprintf(stderr, "freq: %.02fHz\n", pipe_args->swap_count / t);
-					pipe_args->swap_count = 0;
-					pipe_args->start = end;
-				}
-			}
+			if (test_vsync)
+				atomic_test_page_flip(&dev, pipe_args, plane_args, plane_count);
 
 			if (drop_master)
 				drmDropMaster(dev.fd);
