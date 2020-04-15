@@ -2055,8 +2055,11 @@ int main(int argc, char **argv)
 				return 1;
 			}
 
-			set_mode(&dev, pipe_args, count);
-			atomic_set_planes(&dev, plane_args, plane_count, false);
+			if (count)
+				set_mode(&dev, pipe_args, count);
+
+			if (plane_count)
+				atomic_set_planes(&dev, plane_args, plane_count, false);
 
 			ret = drmModeAtomicCommit(dev.fd, dev.req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 			if (ret) {
@@ -2075,13 +2078,18 @@ int main(int argc, char **argv)
 			drmModeAtomicFree(dev.req);
 			dev.req = drmModeAtomicAlloc();
 
-			atomic_clear_mode(&dev, pipe_args, count);
-			atomic_clear_planes(&dev, plane_args, plane_count);
+			if (plane_count)
+				atomic_clear_planes(&dev, plane_args, plane_count);
+
+			if (count)
+				atomic_clear_mode(&dev, pipe_args, count);
+
 			ret = drmModeAtomicCommit(dev.fd, dev.req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
 			if (ret)
 				fprintf(stderr, "Atomic Commit failed\n");
 
-			atomic_clear_FB(&dev, plane_args, plane_count);
+			if (plane_count)
+				atomic_clear_FB(&dev, plane_args, plane_count);
 		}
 
 		drmModeAtomicFree(dev.req);
