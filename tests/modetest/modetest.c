@@ -2078,10 +2078,8 @@ int main(int argc, char **argv)
 			atomic_clear_mode(&dev, pipe_args, count);
 			atomic_clear_planes(&dev, plane_args, plane_count);
 			ret = drmModeAtomicCommit(dev.fd, dev.req, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
-			if (ret) {
+			if (ret)
 				fprintf(stderr, "Atomic Commit failed\n");
-				return 1;
-			}
 
 			atomic_clear_FB(&dev, plane_args, plane_count);
 		}
