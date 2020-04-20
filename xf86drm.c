@@ -3120,6 +3120,7 @@ static int drmParseSubsystemType(int maj, int min)
 #endif
 }
 
+#ifdef __linux__
 static void
 get_pci_path(int maj, int min, char *pci_path)
 {
@@ -3135,6 +3136,7 @@ get_pci_path(int maj, int min, char *pci_path)
     if (term && strncmp(term, "/virtio", 7) == 0)
         *term = 0;
 }
+#endif
 
 #ifdef __FreeBSD__
 static int get_sysctl_pci_bus_info(int maj, int min, drmPciBusInfoPtr info)
