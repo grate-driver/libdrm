@@ -70,6 +70,7 @@ drmdevice = executable(
   include_directories : [inc_root, inc_drm],
   link_with : libdrm,
   c_args : libdrm_c_args,
+  install : with_install_tests,
 )
 
 test('hash', hash)
