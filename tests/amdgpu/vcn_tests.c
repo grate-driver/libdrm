@@ -56,6 +56,7 @@ static amdgpu_device_handle device_handle;
 static uint32_t major_version;
 static uint32_t minor_version;
 static uint32_t family_id;
+static uint32_t asic_id;
 
 static amdgpu_context_handle context_handle;
 static amdgpu_bo_handle ib_handle;
@@ -95,6 +96,7 @@ CU_BOOL suite_vcn_tests_enable(void)
 		return CU_FALSE;
 
 	family_id = device_handle->info.family_id;
+	asic_id = device_handle->info.asic_id;
 
 	if (amdgpu_device_deinitialize(device_handle))
 			return CU_FALSE;
@@ -106,11 +108,19 @@ CU_BOOL suite_vcn_tests_enable(void)
 	}
 
 	if (family_id == AMDGPU_FAMILY_RV) {
-		reg.data0 = 0x81c4;
-		reg.data1 = 0x81c5;
-		reg.cmd = 0x81c3;
-		reg.nop = 0x81ff;
-		reg.cntl = 0x81c6;
+		if (asic_id == 0x1636) {
+			reg.data0 = 0x504;
+			reg.data1 = 0x505;
+			reg.cmd = 0x503;
+			reg.nop = 0x53f;
+			reg.cntl = 0x506;
+		} else {
+			reg.data0 = 0x81c4;
+			reg.data1 = 0x81c5;
+			reg.cmd = 0x81c3;
+			reg.nop = 0x81ff;
+			reg.cntl = 0x81c6;
+		}
 	} else if (family_id == AMDGPU_FAMILY_NV) {
 		reg.data0 = 0x504;
 		reg.data1 = 0x505;
