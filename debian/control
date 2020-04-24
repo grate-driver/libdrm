@@ -13,7 +13,7 @@ Build-Depends:
  libpciaccess-dev,
  valgrind [amd64 armhf i386 mips mipsel powerpc s390x],
  libbsd-dev [kfreebsd-any],
- libdrm2 (>= 2.4.81),
+ libdrm2 (>= 2.4.0),
 Standards-Version: 3.9.6
 Section: libs
 Homepage: https://github.com/grate-driver
@@ -24,7 +24,7 @@ Package: libdrm-tegra0
 Architecture: any-arm arm64
 Depends:
  ${shlibs:Depends}, ${misc:Depends},
- libdrm2 (>= 2.4.81),
+ libdrm2 (>= 2.4.0),
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: Userspace interface to tegra-specific kernel DRM services -- runtime
