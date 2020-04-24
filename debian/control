@@ -1,8 +1,30 @@
+Source: libdrm
+Priority: optional
+Maintainer: Dmitry Osipenko <digetx@gmail.com>
+Build-Depends:
+ debhelper (>=9),
+ dh-autoreconf,
+ xsltproc,
+ docbook-xsl,
+ libx11-dev,
+ pkg-config,
+ xutils-dev (>= 1:7.6+2),
+ libudev-dev [linux-any],
+ libpciaccess-dev,
+ valgrind [amd64 armhf i386 mips mipsel powerpc s390x],
+ libbsd-dev [kfreebsd-any],
+ libdrm2 (>= 2.4.81),
+Standards-Version: 3.9.6
+Section: libs
+Homepage: https://github.com/grate-driver
+Vcs-Git: https://github.com/grate-driver/libdrm.git
+Vcs-Browser: https://github.com/grate-driver/libdrm
+
 Package: libdrm-tegra0
 Architecture: any-arm arm64
 Depends:
- libdrm2 (>= ${binary:Version}),
- ${misc:Depends},
+ ${shlibs:Depends}, ${misc:Depends},
+ libdrm2 (>= 2.4.81),
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: Userspace interface to tegra-specific kernel DRM services -- runtime
