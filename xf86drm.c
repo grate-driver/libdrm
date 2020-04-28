@@ -122,6 +122,7 @@ struct drm_pciinfo {
 static drmServerInfoPtr drm_server_info;
 
 static bool drmNodeIsDRM(int maj, int min);
+static char *drmGetMinorNameForFD(int fd, int type);
 
 drm_public void drmSetServerInfo(drmServerInfoPtr info)
 {
@@ -2776,24 +2777,16 @@ drm_public char *drmGetDeviceNameFromFd(int fd)
 {
 #ifdef __FreeBSD__
     struct stat sbuf;
-    char dname[SPECNAMELEN];
-    char name[SPECNAMELEN];
     int maj, min;
+    int nodetype;
 
     if (fstat(fd, &sbuf))
         return NULL;
 
     maj = major(sbuf.st_rdev);
     min = minor(sbuf.st_rdev);
-
-    if (!drmNodeIsDRM(maj, min) || !S_ISCHR(sbuf.st_mode))
-        return NULL;
-
-    if (!devname_r(sbuf.st_rdev, S_IFCHR, dname, sizeof(dname)))
-        return NULL;
-
-    snprintf(name, sizeof(name), "/dev/%s", dname);
-    return strdup(name);
+    nodetype = drmGetMinorType(maj, min);
+    return drmGetMinorNameForFD(fd, nodetype);
 #else
     char name[128];
     struct stat sbuf;
