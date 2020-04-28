@@ -2947,7 +2947,7 @@ static char *drmGetMinorNameForFD(int fd, int type)
     char dname[SPECNAMELEN];
     const char *mname;
     char name[SPECNAMELEN];
-    int id, maj, min;
+    int id, maj, min, nodetype, i;
 
     if (fstat(fd, &sbuf))
         return NULL;
@@ -2965,14 +2965,25 @@ static char *drmGetMinorNameForFD(int fd, int type)
      * FreeBSD on amd64/i386/powerpc external kernel modules create node in
      * in /dev/drm/ and links in /dev/dri while a WIP in kernel driver creates
      * only device nodes in /dev/dri/ */
+
+    /* Get the node type represented by fd so we can deduce the target name */
+    nodetype = drmGetMinorType(maj, min);
+    if (nodetype == -1)
+        return (NULL);
     mname = drmGetMinorName(type);
-    if (sscanf(dname, "drm/%d", &id) != 1) {
-        snprintf(name, sizeof(name), "dri/%s", mname);
-        if (strncmp(name, dname, strlen(name)) != 0)
-            return NULL;
-        snprintf(name, sizeof(name), "/dev/%s", dname);
-    } else
-        snprintf(name, sizeof(name), DRM_DIR_NAME "/%s%d", mname, id);
+
+    for (i = 0; i < SPECNAMELEN; i++) {
+        if (isalpha(dname[i]) == 0 && dname[i] != '/')
+           break;
+    }
+    if (dname[i] == '\0')
+        return (NULL);
+
+    id = (int)strtol(&dname[i], NULL, 10);
+    id -= drmGetMinorBase(nodetype);
+    snprintf(name, sizeof(name), DRM_DIR_NAME "/%s%d", mname,
+         id + drmGetMinorBase(type));
+
     return strdup(name);
 #else
     struct stat sbuf;
