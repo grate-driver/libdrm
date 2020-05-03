@@ -294,9 +294,12 @@ pushbuf_dump(struct nouveau_pushbuf_krec *krec, int krec_id, int chid)
 		bgn = (uint32_t *)((char *)bo->map + kpsh->offset);
 		end = bgn + (kpsh->length /4);
 
-		err("ch%d: psh %08x %010llx %010llx\n", chid, kpsh->bo_index,
+		err("ch%d: psh %s%08x %010llx %010llx\n", chid,
+		    bo->map ? "" : "(unmapped) ", kpsh->bo_index,
 		    (unsigned long long)kpsh->offset,
 		    (unsigned long long)(kpsh->offset + kpsh->length));
+		if (!bo->map)
+			continue;
 		while (bgn < end)
 			err("\t0x%08x\n", *bgn++);
 	}
