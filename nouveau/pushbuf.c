@@ -292,7 +292,7 @@ pushbuf_dump(struct nouveau_pushbuf_krec *krec, int krec_id, int chid)
 		kref = krec->buffer + kpsh->bo_index;
 		bo = (void *)(unsigned long)kref->user_priv;
 		bgn = (uint32_t *)((char *)bo->map + kpsh->offset);
-		end = bgn + (kpsh->length /4);
+		end = bgn + ((kpsh->length & 0x7fffff) /4);
 
 		err("ch%d: psh %s%08x %010llx %010llx\n", chid,
 		    bo->map ? "" : "(unmapped) ", kpsh->bo_index,
