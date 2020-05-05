@@ -249,7 +249,11 @@ else
 endif
 _valgrind = get_option('valgrind')
 if _valgrind != 'false'
-  dep_valgrind = dependency('valgrind', required : _valgrind == 'true')
+  if with_freedreno
+    dep_valgrind = dependency('valgrind', required : _valgrind == 'true', version : '>=3.10.0')
+  else
+    dep_valgrind = dependency('valgrind', required : _valgrind == 'true')
+  endif
   with_valgrind = dep_valgrind.found()
 else
   dep_valgrind = []
