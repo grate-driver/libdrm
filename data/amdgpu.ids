@@ -45,6 +45,7 @@
 6665,	83,	AMD Radeon (TM) R5 M320
 6667,	0,	AMD Radeon R5 M200 Series
 666F,	0,	AMD Radeon HD 8500M
+66A1,	06,	AMD Radeon (TM) Pro VII
 66AF,	C1,	AMD Radeon VII
 6780,	0,	ATI FirePro V (FireGL V) Graphics Adapter
 678A,	0,	ATI FirePro V (FireGL V) Graphics Adapter
@@ -181,6 +182,7 @@
 6985,	00,	AMD Radeon Pro WX3100
 6987,	80,	AMD Embedded Radeon E9171
 6987,	C0,	Radeon 550X Series
+6987,	C1,	AMD Radeon RX 640
 6987,	C3,	Radeon 540X Series
 6995,	00,	AMD Radeon Pro WX2100
 6997,	00,	Radeon Pro WX2100
@@ -217,4 +219,5 @@
 9874,	87,	AMD Radeon R5 Graphics
 9874,	85,	AMD Radeon R6 Graphics
 9874,	84,	AMD Radeon R7 Graphics
+6FDF,	E7,	AMD Radeon RX 590 GME
 6FDF,	EF,	AMD Radeon RX 580 2048SP
