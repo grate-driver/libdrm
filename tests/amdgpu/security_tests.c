@@ -31,66 +31,6 @@ static amdgpu_device_handle device_handle;
 static uint32_t major_version;
 static uint32_t minor_version;
 
-static void amdgpu_security_alloc_buf_test(void);
-static void amdgpu_security_gfx_submission_test(void);
-static void amdgpu_security_sdma_submission_test(void);
-
-
-CU_BOOL suite_security_tests_enable(void)
-{
-	CU_BOOL enable = CU_TRUE;
-
-	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
-				     &minor_version, &device_handle))
-		return CU_FALSE;
-
-	if (device_handle->info.family_id < AMDGPU_FAMILY_RV) {
-		printf("\n\nDon't support TMZ (trust memory zone), security suite disabled\n");
-		enable = CU_FALSE;
-	}
-
-	if ((major_version < 3) ||
-		((major_version == 3) && (minor_version < 37))) {
-		printf("\n\nDon't support TMZ (trust memory zone), kernel DRM version (%d.%d)\n",
-			major_version, minor_version);
-		printf("is older, security suite disabled\n");
-		enable = CU_FALSE;
-	}
-
-	if (amdgpu_device_deinitialize(device_handle))
-		return CU_FALSE;
-
-	return enable;
-}
-
-int suite_security_tests_init(void)
-{
-	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
-				     &minor_version, &device_handle))
-		return CUE_SINIT_FAILED;
-
-	return CUE_SUCCESS;
-}
-
-int suite_security_tests_clean(void)
-{
-	int r;
-
-	r = amdgpu_device_deinitialize(device_handle);
-	if (r)
-		return CUE_SCLEAN_FAILED;
-
-	return CUE_SUCCESS;
-}
-
-
-CU_TestInfo security_tests[] = {
-	{ "allocate secure buffer test", amdgpu_security_alloc_buf_test },
-	{ "graphics secure command submission", amdgpu_security_gfx_submission_test },
-	{ "sdma secure command submission", amdgpu_security_sdma_submission_test },
-	CU_TEST_INFO_NULL,
-};
-
 static void amdgpu_security_alloc_buf_test(void)
 {
 	amdgpu_bo_handle bo;
@@ -139,4 +79,60 @@ static void amdgpu_security_sdma_submission_test(void)
 	amdgpu_command_submission_write_linear_helper_with_secure(device_handle,
 								  AMDGPU_HW_IP_DMA,
 								  true);
+}
+
+/* ----------------------------------------------------------------- */
+
+CU_TestInfo security_tests[] = {
+	{ "allocate secure buffer test", amdgpu_security_alloc_buf_test },
+	{ "graphics secure command submission", amdgpu_security_gfx_submission_test },
+	{ "sdma secure command submission", amdgpu_security_sdma_submission_test },
+	CU_TEST_INFO_NULL,
+};
+
+CU_BOOL suite_security_tests_enable(void)
+{
+	CU_BOOL enable = CU_TRUE;
+
+	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
+				     &minor_version, &device_handle))
+		return CU_FALSE;
+
+	if (device_handle->info.family_id < AMDGPU_FAMILY_RV) {
+		printf("\n\nDon't support TMZ (trust memory zone), security suite disabled\n");
+		enable = CU_FALSE;
+	}
+
+	if ((major_version < 3) ||
+		((major_version == 3) && (minor_version < 37))) {
+		printf("\n\nDon't support TMZ (trust memory zone), kernel DRM version (%d.%d)\n",
+			major_version, minor_version);
+		printf("is older, security suite disabled\n");
+		enable = CU_FALSE;
+	}
+
+	if (amdgpu_device_deinitialize(device_handle))
+		return CU_FALSE;
+
+	return enable;
+}
+
+int suite_security_tests_init(void)
+{
+	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
+				     &minor_version, &device_handle))
+		return CUE_SINIT_FAILED;
+
+	return CUE_SUCCESS;
+}
+
+int suite_security_tests_clean(void)
+{
+	int r;
+
+	r = amdgpu_device_deinitialize(device_handle);
+	if (r)
+		return CUE_SCLEAN_FAILED;
+
+	return CUE_SUCCESS;
 }
