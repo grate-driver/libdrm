@@ -428,7 +428,7 @@ CU_BOOL suite_security_tests_enable(void)
 				     &minor_version, &device_handle))
 		return CU_FALSE;
 
-	if (device_handle->info.family_id < AMDGPU_FAMILY_RV) {
+	if (device_handle->info.family_id != AMDGPU_FAMILY_RV) {
 		printf("\n\nDon't support TMZ (trust memory zone), security suite disabled\n");
 		enable = CU_FALSE;
 	}
