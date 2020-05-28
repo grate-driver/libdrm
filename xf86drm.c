@@ -696,7 +696,7 @@ static int drmOpenByName(const char *name, int type)
         int  retcode;
 
         sprintf(proc_name, "/proc/dri/%d/name", i);
-        if ((fd = open(proc_name, 0, 0)) >= 0) {
+        if ((fd = open(proc_name, O_RDONLY, 0)) >= 0) {
             retcode = read(fd, buf, sizeof(buf)-1);
             close(fd);
             if (retcode) {
