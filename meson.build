@@ -261,18 +261,8 @@ else
 endif
 
 with_man_pages = get_option('man-pages')
-prog_xslt = find_program('xsltproc', required : with_man_pages == 'true')
-prog_sed = find_program('sed', required : with_man_pages == 'true')
-manpage_style = 'http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl'
-if prog_xslt.found()
-  if run_command(prog_xslt, '--nonet', manpage_style).returncode() != 0
-    if with_man_pages == 'true'
-      error('Manpage style sheet cannot be found')
-    endif
-    with_man_pages = 'false'
-  endif
-endif
-with_man_pages = with_man_pages != 'false' and prog_xslt.found() and prog_sed.found()
+prog_rst2man = find_program('rst2man', required: with_man_pages == 'true')
+with_man_pages = with_man_pages != 'false' and prog_rst2man.found()
 
 config.set10('HAVE_VISIBILITY',
   cc.compiles('''int foo_hidden(void) __attribute__((visibility(("hidden"))));''',

@@ -33,7 +33,6 @@ apt-get install -y --no-remove \
   libcairo2-dev \
   libcunit1-dev \
   libpciaccess-dev \
-  libxslt1-dev \
   meson \
   ninja-build \
   pkg-config \
@@ -41,8 +40,8 @@ apt-get install -y --no-remove \
   python3-pip \
   python3-wheel \
   python3-setuptools \
-  valgrind \
-  xsltproc
+  python3-docutils \
+  valgrind
 
 for arch in ${CROSS_ARCHITECTURES[@]}; do
   cross_file=/cross_file-$arch.txt

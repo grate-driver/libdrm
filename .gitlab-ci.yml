@@ -14,7 +14,7 @@
 # repository's registry will be used there as well.
 variables:
   UPSTREAM_REPO: mesa/drm
-  DEBIAN_TAG: "2019-11-16"
+  DEBIAN_TAG: "2020-11-15"
   DEBIAN_VERSION: buster-slim
   DEBIAN_IMAGE: "$CI_REGISTRY_IMAGE/debian/$DEBIAN_VERSION:$DEBIAN_TAG"
 
@@ -122,10 +122,9 @@ meson-arch-daily:
         base-devel
         cairo
         cunit
-        docbook-xsl
         libatomic_ops
         libpciaccess
-        libxslt
         meson
         valgrind
+        python-docutils
   extends: .meson-build
