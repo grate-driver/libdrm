@@ -2822,7 +2822,7 @@ static bool drmNodeIsDRM(int maj, int min)
     snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device/drm",
              maj, min);
     return stat(path, &sbuf) == 0;
-#elif __FreeBSD__
+#elif defined(__FreeBSD__)
     char name[SPECNAMELEN];
 
     if (!devname_r(makedev(maj, min), S_IFCHR, name, sizeof(name)))
@@ -2935,7 +2935,7 @@ static char *drmGetMinorNameForFD(int fd, int type)
 
     closedir(sysdir);
     return NULL;
-#elif __FreeBSD__
+#elif defined(__FreeBSD__)
     struct stat sbuf;
     char dname[SPECNAMELEN];
     const char *mname;
@@ -3255,7 +3255,7 @@ static int drmParsePciBusInfo(int maj, int min, drmPciBusInfoPtr info)
     info->func = pinfo.func;
 
     return 0;
-#elif __FreeBSD__
+#elif defined(__FreeBSD__)
     return get_sysctl_pci_bus_info(maj, min, info);
 #else
 #warning "Missing implementation of drmParsePciBusInfo"
@@ -3424,7 +3424,7 @@ static int drmParsePciDeviceInfo(int maj, int min,
     device->subdevice_id = pinfo.subdevice_id;
 
     return 0;
-#elif __FreeBSD__
+#elif defined(__FreeBSD__)
     drmPciBusInfo info;
     struct pci_conf_io pc;
     struct pci_match_conf patterns[1];
@@ -4302,7 +4302,7 @@ drm_public char *drmGetDeviceNameFromFd2(int fd)
     free(value);
 
     return strdup(path);
-#elif __FreeBSD__
+#elif defined(__FreeBSD__)
     return drmGetDeviceNameFromFd(fd);
 #else
     struct stat      sbuf;
