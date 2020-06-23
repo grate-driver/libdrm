@@ -142,7 +142,8 @@ CU_BOOL suite_vcn_tests_enable(void)
 			reg.cntl = 0x81c6;
 		}
 	} else if (family_id == AMDGPU_FAMILY_NV) {
-		if (chip_id == (chip_rev + 0x28)) {
+		if (chip_id == (chip_rev + 0x28) ||
+		    chip_id == (chip_rev + 0x32)) {
 			reg.data0 = 0x10;
 			reg.data1 = 0x11;
 			reg.cmd = 0xf;
