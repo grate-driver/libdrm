@@ -59,6 +59,8 @@ static uint32_t family_id;
 static uint32_t chip_rev;
 static uint32_t chip_id;
 static uint32_t asic_id;
+static uint32_t chip_rev;
+static uint32_t chip_id;
 
 static amdgpu_context_handle context_handle;
 static amdgpu_bo_handle ib_handle;
@@ -101,14 +103,24 @@ CU_BOOL suite_vcn_tests_enable(void)
 	chip_rev = device_handle->info.chip_rev;
 	chip_id = device_handle->info.chip_external_rev;
 	asic_id = device_handle->info.asic_id;
+	chip_rev = device_handle->info.chip_rev;
+	chip_id = device_handle->info.chip_external_rev;
 
 	if (amdgpu_device_deinitialize(device_handle))
 			return CU_FALSE;
 
 
-	if (family_id < AMDGPU_FAMILY_RV) {
+	if (family_id < AMDGPU_FAMILY_RV &&
+		(family_id == AMDGPU_FAMILY_AI &&
+		 chip_id != (chip_rev + 0x32))) {  /* Arcturus */
 		printf("\n\nThe ASIC NOT support VCN, suite disabled\n");
 		return CU_FALSE;
+	}
+
+	if (family_id == AMDGPU_FAMILY_AI) {
+		amdgpu_set_test_active("VCN Tests", "VCN ENC create", CU_FALSE);
+		amdgpu_set_test_active("VCN Tests", "VCN ENC decode", CU_FALSE);
+		amdgpu_set_test_active("VCN Tests", "VCN ENC destroy", CU_FALSE);
 	}
 
 	if (family_id == AMDGPU_FAMILY_RV) {
@@ -140,6 +152,12 @@ CU_BOOL suite_vcn_tests_enable(void)
 			reg.nop = 0x53f;
 			reg.cntl = 0x506;
 		}
+	} else if (family_id == AMDGPU_FAMILY_AI) {
+		reg.data0 = 0x10;
+		reg.data1 = 0x11;
+		reg.cmd = 0xf;
+		reg.nop = 0x29;
+		reg.cntl = 0x26d;
 	} else
 		return CU_FALSE;
 
