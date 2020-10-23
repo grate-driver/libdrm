@@ -94,6 +94,8 @@ CU_TestInfo vcn_tests[] = {
 
 CU_BOOL suite_vcn_tests_enable(void)
 {
+	struct drm_amdgpu_info_hw_ip info;
+	int r;
 
 	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
 				   &minor_version, &device_handle))
@@ -106,13 +108,15 @@ CU_BOOL suite_vcn_tests_enable(void)
 	chip_rev = device_handle->info.chip_rev;
 	chip_id = device_handle->info.chip_external_rev;
 
+	r = amdgpu_query_hw_ip_info(device_handle, AMDGPU_HW_IP_VCN_DEC, 0, &info);
+
 	if (amdgpu_device_deinitialize(device_handle))
 			return CU_FALSE;
 
-
-	if (family_id < AMDGPU_FAMILY_RV &&
-		(family_id == AMDGPU_FAMILY_AI &&
-		 chip_id != (chip_rev + 0x32))) {  /* Arcturus */
+	if (r != 0 || !info.available_rings ||
+	    (family_id < AMDGPU_FAMILY_RV &&
+	     (family_id == AMDGPU_FAMILY_AI &&
+	      chip_id != (chip_rev + 0x32)))) {  /* Arcturus */
 		printf("\n\nThe ASIC NOT support VCN, suite disabled\n");
 		return CU_FALSE;
 	}
