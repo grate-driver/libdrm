@@ -124,6 +124,22 @@ static drmServerInfoPtr drm_server_info;
 static bool drmNodeIsDRM(int maj, int min);
 static char *drmGetMinorNameForFD(int fd, int type);
 
+static unsigned log2_int(unsigned x)
+{
+    unsigned l;
+
+    if (x < 2) {
+        return 0;
+    }
+    for (l = 2; ; l++) {
+        if ((unsigned)(1 << l) > x) {
+            return l - 1;
+        }
+    }
+    return 0;
+}
+
+
 drm_public void drmSetServerInfo(drmServerInfoPtr info)
 {
     drm_server_info = info;
@@ -4001,7 +4017,7 @@ static void drmFoldDuplicatedDevices(drmDevicePtr local_devices[], int count)
         for (j = i + 1; j < count; j++) {
             if (drmDevicesEqual(local_devices[i], local_devices[j])) {
                 local_devices[i]->available_nodes |= local_devices[j]->available_nodes;
-                node_type = log2(local_devices[j]->available_nodes);
+                node_type = log2_int(local_devices[j]->available_nodes);
                 memcpy(local_devices[i]->nodes[node_type],
                        local_devices[j]->nodes[node_type], drmGetMaxNodeName());
                 drmFreeDevice(&local_devices[j]);
