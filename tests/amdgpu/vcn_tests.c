@@ -128,7 +128,7 @@ CU_BOOL suite_vcn_tests_enable(void)
 	}
 
 	if (family_id == AMDGPU_FAMILY_RV) {
-		if (asic_id == 0x1636) {
+		if (chip_id >= (chip_rev + 0x91)) {
 			reg.data0 = 0x504;
 			reg.data1 = 0x505;
 			reg.cmd = 0x503;
