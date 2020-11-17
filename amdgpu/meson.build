@@ -36,7 +36,7 @@ libdrm_amdgpu = shared_library(
   ],
   include_directories : [inc_root, inc_drm],
   link_with : libdrm,
-  dependencies : [dep_pthread_stubs, dep_atomic_ops],
+  dependencies : [dep_pthread_stubs, dep_atomic_ops, dep_rt],
   version : '1.0.0',
   install : true,
 )
