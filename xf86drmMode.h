@@ -289,6 +289,18 @@ typedef struct _drmModeEncoder {
 	uint32_t possible_clones;
 } drmModeEncoder, *drmModeEncoderPtr;
 
+/**
+ * Describes the connector status.
+ *
+ * DRM_MODE_CONNECTED means that the connector has a sink plugged in.
+ * DRM_MODE_DISCONNECTED means the contrary. DRM_MODE_UNKNOWNCONNECTION is used
+ * when it could be either.
+ *
+ * User-space should first try to enable DRM_MODE_CONNECTED connectors and
+ * ignore other connectors. If there are no DRM_MODE_CONNECTED connectors,
+ * user-space should then try to probe and enable DRM_MODE_UNKNOWNCONNECTION
+ * connectors.
+ */
 typedef enum {
 	DRM_MODE_CONNECTED         = 1,
 	DRM_MODE_DISCONNECTED      = 2,
