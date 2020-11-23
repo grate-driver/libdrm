@@ -1280,6 +1280,7 @@ int amdgpu_read_mm_registers(amdgpu_device_handle dev, unsigned dword_offset,
 */
 #define AMDGPU_VA_RANGE_32_BIT		0x1
 #define AMDGPU_VA_RANGE_HIGH		0x2
+#define AMDGPU_VA_RANGE_REPLAYABLE	0x4
 
 /**
  * Allocate virtual address range
