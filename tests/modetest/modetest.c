@@ -457,7 +457,7 @@ static void dump_connectors(struct device *dev)
 		if (connector->count_modes) {
 			printf("  modes:\n");
 			printf("\tindex name refresh (Hz) hdisp hss hse htot vdisp "
-			       "vss vse vtot)\n");
+			       "vss vse vtot\n");
 			for (j = 0; j < connector->count_modes; j++)
 				dump_mode(&connector->modes[j], j);
 		}
