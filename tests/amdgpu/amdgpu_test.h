@@ -449,13 +449,18 @@ static inline CU_ErrorCode amdgpu_set_test_active(const char *suite_name,
 	return r;
 }
 
-static inline bool asic_is_arcturus(uint32_t asic_id)
+
+static inline bool asic_is_gfx_pipe_removed(uint32_t family_id, uint32_t chip_id, uint32_t chip_rev)
 {
-	switch(asic_id) {
-	/* Arcturus asic DID */
-	case 0x738C:
-	case 0x7388:
-	case 0x738E:
+
+	if (family_id != AMDGPU_FAMILY_AI)
+	return false;
+
+	switch (chip_id - chip_rev) {
+	/* Arcturus */
+	case 0x32:
+	/* Aldebaran */
+	case 0x3c:
 		return true;
 	default:
 		return false;

@@ -46,6 +46,8 @@ static  amdgpu_device_handle device_handle;
 static  uint32_t  major_version;
 static  uint32_t  minor_version;
 static  uint32_t  family_id;
+static  uint32_t  chip_id;
+static  uint32_t  chip_rev;
 
 static void amdgpu_query_info_test(void);
 static void amdgpu_command_submission_gfx(void);
@@ -619,19 +621,20 @@ int amdgpu_bo_alloc_and_map_raw(amdgpu_device_handle dev, unsigned size,
 
 CU_BOOL suite_basic_tests_enable(void)
 {
-	uint32_t asic_id;
 
 	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
 					     &minor_version, &device_handle))
 		return CU_FALSE;
 
-	asic_id = device_handle->info.asic_id;
-
 	if (amdgpu_device_deinitialize(device_handle))
 		return CU_FALSE;
 
-	/* disable gfx engine basic test cases for Arturus due to no CPG */
-	if (asic_is_arcturus(asic_id)) {
+	family_id = device_handle->info.family_id;
+	chip_id = device_handle->info.chip_external_rev;
+	chip_rev = device_handle->info.chip_rev;
+
+	/* disable gfx engine basic test cases for some asics have no CPG */
+	if (asic_is_gfx_pipe_removed(family_id, chip_id, chip_rev)) {
 		if (amdgpu_set_test_active("Basic Tests",
 					"Command submission Test (GFX)",
 					CU_FALSE))
@@ -1073,6 +1076,14 @@ static void amdgpu_semaphore_test(void)
 	amdgpu_bo_list_handle bo_list[2];
 	amdgpu_va_handle va_handle[2];
 	int r, i;
+	struct amdgpu_gpu_info gpu_info = {0};
+	unsigned gc_ip_type;
+
+	r = amdgpu_query_gpu_info(device_handle, &gpu_info);
+	CU_ASSERT_EQUAL(r, 0);
+
+	gc_ip_type = (asic_is_gfx_pipe_removed(family_id, chip_id, chip_rev)) ?
+			AMDGPU_HW_IP_COMPUTE : AMDGPU_HW_IP_GFX;
 
 	if (family_id == AMDGPU_FAMILY_SI) {
 		sdma_nop = SDMA_PACKET_SI(SDMA_NOP_SI, 0, 0, 0, 0);
@@ -1115,14 +1126,14 @@ static void amdgpu_semaphore_test(void)
 	r = amdgpu_cs_signal_semaphore(context_handle[0], AMDGPU_HW_IP_DMA, 0, 0, sem);
 	CU_ASSERT_EQUAL(r, 0);
 
-	r = amdgpu_cs_wait_semaphore(context_handle[0], AMDGPU_HW_IP_GFX, 0, 0, sem);
+	r = amdgpu_cs_wait_semaphore(context_handle[0], gc_ip_type, 0, 0, sem);
 	CU_ASSERT_EQUAL(r, 0);
 	ptr = ib_result_cpu[1];
 	ptr[0] = gfx_nop;
 	ib_info[1].ib_mc_address = ib_result_mc_address[1];
 	ib_info[1].size = 1;
 
-	ibs_request[1].ip_type = AMDGPU_HW_IP_GFX;
+	ibs_request[1].ip_type = gc_ip_type;
 	ibs_request[1].number_of_ibs = 1;
 	ibs_request[1].ibs = &ib_info[1];
 	ibs_request[1].resources = bo_list[1];
@@ -1132,7 +1143,7 @@ static void amdgpu_semaphore_test(void)
 	CU_ASSERT_EQUAL(r, 0);
 
 	fence_status.context = context_handle[0];
-	fence_status.ip_type = AMDGPU_HW_IP_GFX;
+	fence_status.ip_type = gc_ip_type;
 	fence_status.ip_instance = 0;
 	fence_status.fence = ibs_request[1].seq_no;
 	r = amdgpu_cs_query_fence_status(&fence_status,
@@ -1146,24 +1157,24 @@ static void amdgpu_semaphore_test(void)
 	ib_info[0].ib_mc_address = ib_result_mc_address[0];
 	ib_info[0].size = 1;
 
-	ibs_request[0].ip_type = AMDGPU_HW_IP_GFX;
+	ibs_request[0].ip_type = gc_ip_type;
 	ibs_request[0].number_of_ibs = 1;
 	ibs_request[0].ibs = &ib_info[0];
 	ibs_request[0].resources = bo_list[0];
 	ibs_request[0].fence_info.handle = NULL;
 	r = amdgpu_cs_submit(context_handle[0], 0,&ibs_request[0], 1);
 	CU_ASSERT_EQUAL(r, 0);
-	r = amdgpu_cs_signal_semaphore(context_handle[0], AMDGPU_HW_IP_GFX, 0, 0, sem);
+	r = amdgpu_cs_signal_semaphore(context_handle[0], gc_ip_type, 0, 0, sem);
 	CU_ASSERT_EQUAL(r, 0);
 
-	r = amdgpu_cs_wait_semaphore(context_handle[1], AMDGPU_HW_IP_GFX, 0, 0, sem);
+	r = amdgpu_cs_wait_semaphore(context_handle[1], gc_ip_type, 0, 0, sem);
 	CU_ASSERT_EQUAL(r, 0);
 	ptr = ib_result_cpu[1];
 	ptr[0] = gfx_nop;
 	ib_info[1].ib_mc_address = ib_result_mc_address[1];
 	ib_info[1].size = 1;
 
-	ibs_request[1].ip_type = AMDGPU_HW_IP_GFX;
+	ibs_request[1].ip_type = gc_ip_type;
 	ibs_request[1].number_of_ibs = 1;
 	ibs_request[1].ibs = &ib_info[1];
 	ibs_request[1].resources = bo_list[1];
@@ -1173,7 +1184,7 @@ static void amdgpu_semaphore_test(void)
 	CU_ASSERT_EQUAL(r, 0);
 
 	fence_status.context = context_handle[1];
-	fence_status.ip_type = AMDGPU_HW_IP_GFX;
+	fence_status.ip_type = gc_ip_type;
 	fence_status.ip_instance = 0;
 	fence_status.fence = ibs_request[1].seq_no;
 	r = amdgpu_cs_query_fence_status(&fence_status,
