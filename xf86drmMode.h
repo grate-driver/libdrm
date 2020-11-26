@@ -560,14 +560,14 @@ extern int drmModeCreateLease(int fd, const uint32_t *objects, int num_objects, 
 
 typedef struct drmModeLesseeList {
 	uint32_t count;
-	uint32_t lessees[0];
+	uint32_t lessees[];
 } drmModeLesseeListRes, *drmModeLesseeListPtr;
 
 extern drmModeLesseeListPtr drmModeListLessees(int fd);
 
 typedef struct drmModeObjectList {
 	uint32_t count;
-	uint32_t objects[0];
+	uint32_t objects[];
 } drmModeObjectListRes, *drmModeObjectListPtr;
 
 extern drmModeObjectListPtr drmModeGetLease(int fd);
