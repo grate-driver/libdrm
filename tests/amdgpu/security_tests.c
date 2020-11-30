@@ -172,7 +172,7 @@ static void amdgpu_sdma_nop(uint32_t *packet, uint32_t nop_count)
 }
 
 /**
- * amdgpu_bo_lcopy -- linear copy with TZM set, using sDMA
+ * amdgpu_bo_lcopy -- linear copy with TMZ set, using sDMA
  * @dev: AMDGPU device to which both buffer objects belong to
  * @dst: destination buffer object
  * @src: source buffer object
