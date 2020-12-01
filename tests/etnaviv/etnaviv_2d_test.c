@@ -147,6 +147,27 @@ static void gen_cmd_stream(struct etna_cmd_stream *stream, struct etna_bo *bmp, 
 	etna_set_state(stream, VIVS_GL_FLUSH_CACHE, VIVS_GL_FLUSH_CACHE_PE2D);
 }
 
+int etna_check_image(uint32_t *p, int width, int height)
+{
+	int i;
+	uint32_t expected;
+
+	for (i = 0; i < width * height; i++) {
+		if (i%8 < 4 && i%(width*8) < width*4 && i%width < 8*16 && i < width*8*16)
+			expected = 0xff40ff40;
+		else
+			expected = 0x00000000;
+
+		if (p[i] != expected) {
+			fprintf(stderr, "Offset %d: expected: 0x%08x, got: 0x%08x\n",
+				i, expected, p[i]);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	const int width = 256;
@@ -165,7 +186,7 @@ int main(int argc, char *argv[])
 	int core = 0;
 
 	if (argc < 2) {
-		fprintf(stderr, "Usage: %s /dev/dri/<device>\n", argv[0]);
+		fprintf(stderr, "Usage: %s /dev/dri/<device> [<etna.bmp>]\n", argv[0]);
 		return 1;
 	}
 
@@ -242,7 +263,11 @@ int main(int argc, char *argv[])
 
 	etna_cmd_stream_finish(stream);
 
-	bmp_dump32(etna_bo_map(bmp), width, height, false, "/tmp/etna.bmp");
+	if (argc > 2)
+		bmp_dump32(etna_bo_map(bmp), width, height, false, argv[2]);
+
+	if (etna_check_image(etna_bo_map(bmp), width, height))
+		ret = 7;
 
 	etna_cmd_stream_del(stream);
 
