@@ -162,9 +162,16 @@ int main(int argc, char *argv[])
 	drmVersionPtr version;
 	int fd, ret = 0;
 
-	fd = open(argv[1], O_RDWR);
-	if (fd < 0)
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s /dev/dri/<device>\n", argv[0]);
 		return 1;
+	}
+
+	fd = open(argv[1], O_RDWR);
+	if (fd < 0) {
+		perror(argv[1]);
+		return 1;
+	}
 
 	version = drmGetVersion(fd);
 	if (version) {
@@ -178,6 +185,7 @@ int main(int argc, char *argv[])
 
 	dev = etna_device_new(fd);
 	if (!dev) {
+		perror("etna_device_new");
 		ret = 2;
 		goto out;
 	}
@@ -185,18 +193,21 @@ int main(int argc, char *argv[])
 	/* TODO: we assume that core 0 is a 2D capable one */
 	gpu = etna_gpu_new(dev, 0);
 	if (!gpu) {
+		perror("etna_gpu_new");
 		ret = 3;
 		goto out_device;
 	}
 
 	pipe = etna_pipe_new(gpu, ETNA_PIPE_2D);
 	if (!pipe) {
+		perror("etna_pipe_new");
 		ret = 4;
 		goto out_gpu;
 	}
 
 	bmp = etna_bo_new(dev, bmp_size, ETNA_BO_UNCACHED);
 	if (!bmp) {
+		perror("etna_bo_new");
 		ret = 5;
 		goto out_pipe;
 	}
@@ -204,6 +215,7 @@ int main(int argc, char *argv[])
 
 	stream = etna_cmd_stream_new(pipe, 0x300, NULL, NULL);
 	if (!stream) {
+		perror("etna_cmd_stream_new");
 		ret = 6;
 		goto out_bo;
 	}
