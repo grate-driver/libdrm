@@ -161,6 +161,8 @@ int main(int argc, char *argv[])
 
 	drmVersionPtr version;
 	int fd, ret = 0;
+	uint64_t feat;
+	int core = 0;
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s /dev/dri/<device>\n", argv[0]);
@@ -190,13 +192,28 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	/* TODO: we assume that core 0 is a 2D capable one */
-	gpu = etna_gpu_new(dev, 0);
-	if (!gpu) {
-		perror("etna_gpu_new");
-		ret = 3;
-		goto out_device;
-	}
+	do {
+		gpu = etna_gpu_new(dev, core);
+		if (!gpu) {
+			perror("etna_gpu_new");
+			ret = 3;
+			goto out_device;
+		}
+
+		if (etna_gpu_get_param(gpu, ETNA_GPU_FEATURES_0, &feat)) {
+			perror("etna_gpu_get_param");
+			ret = 4;
+			goto out_device;
+		}
+
+		if ((feat & (1 << 9)) == 0) {
+			/* GPU not 2D capable. */
+			etna_gpu_del(gpu);
+			gpu = NULL;
+		}
+
+		core++;
+	} while (!gpu);
 
 	pipe = etna_pipe_new(gpu, ETNA_PIPE_2D);
 	if (!pipe) {
