@@ -48,9 +48,6 @@ extern "C" {
 /*
  * This is the interface for modesetting for drm.
  *
- * In order to use this interface you must include either <stdint.h> or another
- * header defining uint32_t, int32_t and uint16_t.
- *
  * It aims to provide a randr1.2 compatible interface for modesettings in the
  * kernel, the interface is also meant to be used by libraries like EGL.
  *

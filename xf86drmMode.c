@@ -33,11 +33,6 @@
  *
  */
 
-/*
- * TODO the types we are after are defined in different headers on different
- * platforms find which headers to include to get uint32_t
- */
-
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
