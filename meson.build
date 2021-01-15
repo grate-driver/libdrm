@@ -261,7 +261,7 @@ else
 endif
 
 with_man_pages = get_option('man-pages')
-prog_rst2man = find_program('rst2man', required: with_man_pages == 'true')
+prog_rst2man = find_program('rst2man', 'rst2man.py', required: with_man_pages == 'true')
 with_man_pages = with_man_pages != 'false' and prog_rst2man.found()
 
 config.set10('HAVE_VISIBILITY',
