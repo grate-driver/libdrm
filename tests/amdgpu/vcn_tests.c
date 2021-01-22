@@ -102,8 +102,6 @@ CU_BOOL suite_vcn_tests_enable(void)
 		return CU_FALSE;
 
 	family_id = device_handle->info.family_id;
-	chip_rev = device_handle->info.chip_rev;
-	chip_id = device_handle->info.chip_external_rev;
 	asic_id = device_handle->info.asic_id;
 	chip_rev = device_handle->info.chip_rev;
 	chip_id = device_handle->info.chip_external_rev;
