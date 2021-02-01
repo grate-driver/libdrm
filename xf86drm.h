@@ -944,6 +944,17 @@ extern int drmSyncobjTransfer(int fd,
 			      uint32_t src_handle, uint64_t src_point,
 			      uint32_t flags);
 
+extern char *
+drmGetFormatModifierVendor(uint64_t modifier);
+
+extern char *
+drmGetFormatModifierName(uint64_t modifier);
+
+#ifndef fourcc_mod_get_vendor
+#define fourcc_mod_get_vendor(modifier) \
+       (((modifier) >> 56) & 0xff)
+#endif
+
 #if defined(__cplusplus)
 }
 #endif

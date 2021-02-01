@@ -63,4 +63,4 @@ done
 
 
 # Test that the oldest Meson version we claim to support is still supported
-pip3 install meson==0.43
+pip3 install meson==0.46

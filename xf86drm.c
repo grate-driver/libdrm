@@ -76,6 +76,7 @@
 
 #include "xf86drm.h"
 #include "libdrm_macros.h"
+#include "drm_fourcc.h"
 
 #include "util_math.h"
 
@@ -123,6 +124,33 @@ static drmServerInfoPtr drm_server_info;
 
 static bool drmNodeIsDRM(int maj, int min);
 static char *drmGetMinorNameForFD(int fd, int type);
+
+#define DRM_MODIFIER(v, f, f_name) \
+       .modifier = DRM_FORMAT_MOD_##v ## _ ##f, \
+       .modifier_name = #f_name
+
+#define DRM_MODIFIER_INVALID(v, f_name) \
+       .modifier = DRM_FORMAT_MOD_INVALID, .modifier_name = #f_name
+
+#define DRM_MODIFIER_LINEAR(v, f_name) \
+       .modifier = DRM_FORMAT_MOD_LINEAR, .modifier_name = #f_name
+
+/* Intel is abit special as the format doesn't follow other vendors naming
+ * scheme */
+#define DRM_MODIFIER_INTEL(f, f_name) \
+       .modifier = I915_FORMAT_MOD_##f, .modifier_name = #f_name
+
+struct drmFormatModifierInfo {
+    uint64_t modifier;
+    const char *modifier_name;
+};
+
+struct drmFormatModifierVendorInfo {
+    uint8_t vendor;
+    const char *vendor_name;
+};
+
+#include "generated_static_table_fourcc.h"
 
 static unsigned log2_int(unsigned x)
 {
@@ -4584,4 +4612,56 @@ drm_public int drmSyncobjTransfer(int fd,
     ret = drmIoctl(fd, DRM_IOCTL_SYNCOBJ_TRANSFER, &args);
 
     return ret;
+}
+
+static char *
+drmGetFormatModifierFromSimpleTokens(uint64_t modifier)
+{
+    unsigned int i;
+
+    for (i = 0; i < ARRAY_SIZE(drm_format_modifier_table); i++) {
+        if (drm_format_modifier_table[i].modifier == modifier)
+            return strdup(drm_format_modifier_table[i].modifier_name);
+    }
+
+    return NULL;
+}
+
+/** Retrieves a human-readable representation of a vendor (as a string) from
+ * the format token modifier
+ *
+ * \param modifier the format modifier token
+ * \return a char pointer to the human-readable form of the vendor. Caller is
+ * responsible for freeing it.
+ */
+drm_public char *
+drmGetFormatModifierVendor(uint64_t modifier)
+{
+    unsigned int i;
+    uint8_t vendor = fourcc_mod_get_vendor(modifier);
+
+    for (i = 0; i < ARRAY_SIZE(drm_format_modifier_vendor_table); i++) {
+        if (drm_format_modifier_vendor_table[i].vendor == vendor)
+            return strdup(drm_format_modifier_vendor_table[i].vendor_name);
+    }
+
+    return NULL;
+}
+
+/** Retrieves a human-readable representation string from a format token
+ * modifier
+ *
+ * If the format modifier was not in the table, this function would return
+ * NULL.
+ *
+ * \param modifier the token format
+ * \return a malloc'ed string representation of the modifier. Caller is
+ * responsible for freeing the string returned.
+ *
+ */
+drm_public char *
+drmGetFormatModifierName(uint64_t modifier)
+{
+    char *modifier_found = drmGetFormatModifierFromSimpleTokens(modifier);
+    return modifier_found;
 }
