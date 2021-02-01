@@ -61,6 +61,7 @@
 #include <sys/sysctl.h>
 #endif
 #include <math.h>
+#include <inttypes.h>
 
 #if defined(__FreeBSD__)
 #include <sys/param.h>
@@ -165,8 +166,12 @@ struct drmFormatVendorModifierInfo {
 static char *
 drmGetFormatModifierNameFromArm(uint64_t modifier);
 
+static char *
+drmGetFormatModifierNameFromNvidia(uint64_t modifier);
+
 static const struct drmVendorInfo modifier_format_vendor_table[] = {
     { DRM_FORMAT_MOD_VENDOR_ARM, drmGetFormatModifierNameFromArm },
+    { DRM_FORMAT_MOD_VENDOR_NVIDIA, drmGetFormatModifierNameFromNvidia },
 };
 
 #ifndef AFBC_FORMAT_MOD_MODE_VALUE_MASK
@@ -248,6 +253,31 @@ drmGetFormatModifierNameFromArm(uint64_t modifier)
 
     fclose(fp);
     return modifier_name;
+}
+
+static char *
+drmGetFormatModifierNameFromNvidia(uint64_t modifier)
+{
+    uint64_t height, kind, gen, sector, compression;
+
+    height = modifier & 0xf;
+    kind = (modifier >> 12) & 0xff;
+
+    gen = (modifier >> 20) & 0x3;
+    sector = (modifier >> 22) & 0x1;
+    compression = (modifier >> 23) & 0x7;
+
+    /* just in case there could other simpler modifiers, not yet added, avoid
+     * testing against TEGRA_TILE */
+    if ((modifier & 0x10) == 0x10) {
+        char *mod_nvidia;
+        asprintf(&mod_nvidia, "BLOCK_LINEAR_2D,HEIGHT=%"PRIu64",KIND=%"PRIu64","
+                 "GEN=%"PRIu64",SECTOR=%"PRIu64",COMPRESSION=%"PRIu64"", height,
+                 kind, gen, sector, compression);
+        return mod_nvidia;
+    }
+
+    return  NULL;
 }
 
 static unsigned log2_int(unsigned x)
