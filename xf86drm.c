@@ -152,6 +152,104 @@ struct drmFormatModifierVendorInfo {
 
 #include "generated_static_table_fourcc.h"
 
+struct drmVendorInfo {
+    uint8_t vendor;
+    char *(*vendor_cb)(uint64_t modifier);
+};
+
+struct drmFormatVendorModifierInfo {
+    uint64_t modifier;
+    const char *modifier_name;
+};
+
+static char *
+drmGetFormatModifierNameFromArm(uint64_t modifier);
+
+static const struct drmVendorInfo modifier_format_vendor_table[] = {
+    { DRM_FORMAT_MOD_VENDOR_ARM, drmGetFormatModifierNameFromArm },
+};
+
+#ifndef AFBC_FORMAT_MOD_MODE_VALUE_MASK
+#define AFBC_FORMAT_MOD_MODE_VALUE_MASK	0x000fffffffffffffULL
+#endif
+
+static const struct drmFormatVendorModifierInfo arm_mode_value_table[] = {
+    { AFBC_FORMAT_MOD_YTR,          "YTR" },
+    { AFBC_FORMAT_MOD_SPLIT,        "SPLIT" },
+    { AFBC_FORMAT_MOD_SPARSE,       "SPARSE" },
+    { AFBC_FORMAT_MOD_CBR,          "CBR" },
+    { AFBC_FORMAT_MOD_TILED,        "TILED" },
+    { AFBC_FORMAT_MOD_SC,           "SC" },
+    { AFBC_FORMAT_MOD_DB,           "DB" },
+    { AFBC_FORMAT_MOD_BCH,          "BCH" },
+    { AFBC_FORMAT_MOD_USM,          "USM" },
+};
+
+static char *
+drmGetFormatModifierNameFromArm(uint64_t modifier)
+{
+    uint64_t type = (modifier >> 52) & 0xf;
+    uint64_t mode_value = modifier & AFBC_FORMAT_MOD_MODE_VALUE_MASK;
+    uint64_t block_size = mode_value & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK;
+
+    FILE *fp;
+    char *modifier_name = NULL;
+    size_t size = 0;
+    unsigned int i;
+
+    const char *block = NULL;
+    const char *mode = NULL;
+    bool did_print_mode = false;
+
+    /* misc type is already handled by the static table */
+    if (type != DRM_FORMAT_MOD_ARM_TYPE_AFBC)
+        return NULL;
+
+    fp = open_memstream(&modifier_name, &size);
+    if (!fp)
+        return NULL;
+
+    /* add block, can only have a (single) block */
+    switch (block_size) {
+    case AFBC_FORMAT_MOD_BLOCK_SIZE_16x16:
+        block = "16x16";
+        break;
+    case AFBC_FORMAT_MOD_BLOCK_SIZE_32x8:
+        block = "32x8";
+        break;
+    case AFBC_FORMAT_MOD_BLOCK_SIZE_64x4:
+        block = "64x4";
+        break;
+    case AFBC_FORMAT_MOD_BLOCK_SIZE_32x8_64x4:
+        block = "32x8_64x4";
+        break;
+    }
+
+    if (!block) {
+        fclose(fp);
+        free(modifier_name);
+        return NULL;
+    }
+
+    fprintf(fp, "BLOCK_SIZE=%s,", block);
+
+    /* add mode */
+    for (i = 0; i < ARRAY_SIZE(arm_mode_value_table); i++) {
+        if (arm_mode_value_table[i].modifier & mode_value) {
+            mode = arm_mode_value_table[i].modifier_name;
+            if (!did_print_mode) {
+                fprintf(fp, "MODE=%s", mode);
+                did_print_mode = true;
+            } else {
+                fprintf(fp, "|%s", mode);
+            }
+        }
+    }
+
+    fclose(fp);
+    return modifier_name;
+}
+
 static unsigned log2_int(unsigned x)
 {
     unsigned l;
@@ -4651,8 +4749,8 @@ drmGetFormatModifierVendor(uint64_t modifier)
 /** Retrieves a human-readable representation string from a format token
  * modifier
  *
- * If the format modifier was not in the table, this function would return
- * NULL.
+ * If the dedicated function was not able to extract a valid name or searching
+ * the format modifier was not in the table, this function would return NULL.
  *
  * \param modifier the token format
  * \return a malloc'ed string representation of the modifier. Caller is
@@ -4662,6 +4760,17 @@ drmGetFormatModifierVendor(uint64_t modifier)
 drm_public char *
 drmGetFormatModifierName(uint64_t modifier)
 {
-    char *modifier_found = drmGetFormatModifierFromSimpleTokens(modifier);
+    uint8_t vendorid = fourcc_mod_get_vendor(modifier);
+    char *modifier_found = NULL;
+    unsigned int i;
+
+    for (i = 0; i < ARRAY_SIZE(modifier_format_vendor_table); i++) {
+        if (modifier_format_vendor_table[i].vendor == vendorid)
+            modifier_found = modifier_format_vendor_table[i].vendor_cb(modifier);
+    }
+
+    if (!modifier_found)
+        return drmGetFormatModifierFromSimpleTokens(modifier);
+
     return modifier_found;
 }
