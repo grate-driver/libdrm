@@ -4263,12 +4263,13 @@ drm_public int drmGetDevices2(uint32_t flags, drmDevicePtr devices[],
         if (!local_devices[i])
             continue;
 
-        if ((devices != NULL) && (device_count < max_devices))
+        if ((devices != NULL) && (device_count < max_devices)) {
             devices[device_count] = local_devices[i];
-        else
+            device_count++;
+        } else {
             drmFreeDevice(&local_devices[i]);
+        }
 
-        device_count++;
     }
 
     closedir(sysdir);
