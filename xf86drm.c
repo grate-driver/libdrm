@@ -4272,6 +4272,10 @@ drm_public int drmGetDevices2(uint32_t flags, drmDevicePtr devices[],
     }
 
     closedir(sysdir);
+
+    if (devices != NULL)
+        return MIN2(device_count, max_devices);
+
     return device_count;
 }
 
