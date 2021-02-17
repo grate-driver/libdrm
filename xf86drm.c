@@ -169,9 +169,13 @@ drmGetFormatModifierNameFromArm(uint64_t modifier);
 static char *
 drmGetFormatModifierNameFromNvidia(uint64_t modifier);
 
+static char *
+drmGetFormatModifierNameFromAmd(uint64_t modifier);
+
 static const struct drmVendorInfo modifier_format_vendor_table[] = {
     { DRM_FORMAT_MOD_VENDOR_ARM, drmGetFormatModifierNameFromArm },
     { DRM_FORMAT_MOD_VENDOR_NVIDIA, drmGetFormatModifierNameFromNvidia },
+    { DRM_FORMAT_MOD_VENDOR_AMD, drmGetFormatModifierNameFromAmd },
 };
 
 #ifndef AFBC_FORMAT_MOD_MODE_VALUE_MASK
@@ -189,6 +193,18 @@ static const struct drmFormatVendorModifierInfo arm_mode_value_table[] = {
     { AFBC_FORMAT_MOD_BCH,          "BCH" },
     { AFBC_FORMAT_MOD_USM,          "USM" },
 };
+
+static bool is_x_t_amd_gfx9_tile(uint64_t tile)
+{
+    switch (tile) {
+    case AMD_FMT_MOD_TILE_GFX9_64K_S_X:
+    case AMD_FMT_MOD_TILE_GFX9_64K_D_X:
+    case AMD_FMT_MOD_TILE_GFX9_64K_R_X:
+           return true;
+    }
+
+    return false;
+}
 
 static char *
 drmGetFormatModifierNameFromArm(uint64_t modifier)
@@ -278,6 +294,157 @@ drmGetFormatModifierNameFromNvidia(uint64_t modifier)
     }
 
     return  NULL;
+}
+
+static void
+drmGetFormatModifierNameFromAmdDcc(uint64_t modifier, FILE *fp)
+{
+    uint64_t dcc_max_compressed_block =
+                AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier);
+    uint64_t dcc_retile = AMD_FMT_MOD_GET(DCC_RETILE, modifier);
+
+    const char *dcc_max_compressed_block_str = NULL;
+
+    fprintf(fp, ",DCC");
+
+    if (dcc_retile)
+        fprintf(fp, ",DCC_RETILE");
+
+    if (!dcc_retile && AMD_FMT_MOD_GET(DCC_PIPE_ALIGN, modifier))
+        fprintf(fp, ",DCC_PIPE_ALIGN");
+
+    if (AMD_FMT_MOD_GET(DCC_INDEPENDENT_64B, modifier))
+        fprintf(fp, ",DCC_INDEPENDENT_64B");
+
+    if (AMD_FMT_MOD_GET(DCC_INDEPENDENT_128B, modifier))
+        fprintf(fp, ",DCC_INDEPENDENT_128B");
+
+    switch (dcc_max_compressed_block) {
+    case AMD_FMT_MOD_DCC_BLOCK_64B:
+        dcc_max_compressed_block_str = "64B";
+        break;
+    case AMD_FMT_MOD_DCC_BLOCK_128B:
+        dcc_max_compressed_block_str = "128B";
+        break;
+    case AMD_FMT_MOD_DCC_BLOCK_256B:
+        dcc_max_compressed_block_str = "256B";
+        break;
+    }
+
+    if (dcc_max_compressed_block_str)
+        fprintf(fp, ",DCC_MAX_COMPRESSED_BLOCK=%s",
+                dcc_max_compressed_block_str);
+
+    if (AMD_FMT_MOD_GET(DCC_CONSTANT_ENCODE, modifier))
+        fprintf(fp, ",DCC_CONSTANT_ENCODE");
+}
+
+static void
+drmGetFormatModifierNameFromAmdTile(uint64_t modifier, FILE *fp)
+{
+    uint64_t pipe_xor_bits, bank_xor_bits, packers, rb;
+    uint64_t pipe, pipe_align, dcc, dcc_retile, tile_version;
+
+    pipe_align = AMD_FMT_MOD_GET(DCC_PIPE_ALIGN, modifier);
+    pipe_xor_bits = AMD_FMT_MOD_GET(PIPE_XOR_BITS, modifier);
+    dcc = AMD_FMT_MOD_GET(DCC, modifier);
+    dcc_retile = AMD_FMT_MOD_GET(DCC_RETILE, modifier);
+    tile_version = AMD_FMT_MOD_GET(TILE_VERSION, modifier);
+
+    fprintf(fp, ",PIPE_XOR_BITS=%"PRIu64, pipe_xor_bits);
+
+    if (tile_version == AMD_FMT_MOD_TILE_VER_GFX9) {
+        bank_xor_bits = AMD_FMT_MOD_GET(BANK_XOR_BITS, modifier);
+        fprintf(fp, ",BANK_XOR_BITS=%"PRIu64, bank_xor_bits);
+    }
+
+    if (tile_version == AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS) {
+        packers = AMD_FMT_MOD_GET(PACKERS, modifier);
+        fprintf(fp, ",PACKERS=%"PRIu64, packers);
+    }
+
+    if (dcc && tile_version == AMD_FMT_MOD_TILE_VER_GFX9) {
+        rb = AMD_FMT_MOD_GET(RB, modifier);
+        fprintf(fp, ",RB=%"PRIu64, rb);
+    }
+
+    if (dcc && tile_version == AMD_FMT_MOD_TILE_VER_GFX9 &&
+        (dcc_retile || pipe_align)) {
+        pipe = AMD_FMT_MOD_GET(PIPE, modifier);
+        fprintf(fp, ",PIPE_%"PRIu64, pipe);
+    }
+}
+
+static char *
+drmGetFormatModifierNameFromAmd(uint64_t modifier)
+{
+    uint64_t tile, tile_version, dcc;
+    FILE *fp;
+    char *mod_amd = NULL;
+    size_t size = 0;
+
+    const char *str_tile = NULL;
+    const char *str_tile_version = NULL;
+
+    tile = AMD_FMT_MOD_GET(TILE, modifier);
+    tile_version = AMD_FMT_MOD_GET(TILE_VERSION, modifier);
+    dcc = AMD_FMT_MOD_GET(DCC, modifier);
+
+    fp = open_memstream(&mod_amd, &size);
+    if (!fp)
+        return NULL;
+
+    /* add tile  */
+    switch (tile_version) {
+    case AMD_FMT_MOD_TILE_VER_GFX9:
+        str_tile_version = "GFX9";
+        break;
+    case AMD_FMT_MOD_TILE_VER_GFX10:
+        str_tile_version = "GFX10";
+        break;
+    case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS:
+        str_tile_version = "GFX10_RBPLUS";
+        break;
+    }
+
+    if (str_tile_version) {
+        fprintf(fp, "%s", str_tile_version);
+    } else {
+        fclose(fp);
+        free(mod_amd);
+        return NULL;
+    }
+
+    /* add tile str */
+    switch (tile) {
+    case AMD_FMT_MOD_TILE_GFX9_64K_S:
+        str_tile = "GFX9_64K_S";
+        break;
+    case AMD_FMT_MOD_TILE_GFX9_64K_D:
+        str_tile = "GFX9_64K_D";
+        break;
+    case AMD_FMT_MOD_TILE_GFX9_64K_S_X:
+        str_tile = "GFX9_64K_S_X";
+        break;
+    case AMD_FMT_MOD_TILE_GFX9_64K_D_X:
+        str_tile = "GFX9_64K_D_X";
+        break;
+    case AMD_FMT_MOD_TILE_GFX9_64K_R_X:
+        str_tile = "GFX9_64K_R_X";
+        break;
+    }
+
+    if (str_tile)
+        fprintf(fp, ",%s", str_tile);
+
+    if (dcc)
+        drmGetFormatModifierNameFromAmdDcc(modifier, fp);
+
+    if (tile_version >= AMD_FMT_MOD_TILE_VER_GFX9 && is_x_t_amd_gfx9_tile(tile))
+        drmGetFormatModifierNameFromAmdTile(modifier, fp);
+
+    fclose(fp);
+    return mod_amd;
 }
 
 static unsigned log2_int(unsigned x)
