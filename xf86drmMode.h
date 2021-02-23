@@ -260,6 +260,13 @@ extern void drmModeFreePlane( drmModePlanePtr ptr );
 extern void drmModeFreePlaneResources(drmModePlaneResPtr ptr);
 
 /**
+ * Check whether the DRM node supports Kernel Mode-Setting.
+ *
+ * Returns 1 if suitable for KMS, 0 otherwise.
+ */
+extern int drmIsKMS(int fd);
+
+/**
  * Retrieves all of the resources associated with a card.
  */
 extern drmModeResPtr drmModeGetResources(int fd);
