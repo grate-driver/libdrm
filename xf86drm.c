@@ -172,10 +172,14 @@ drmGetFormatModifierNameFromNvidia(uint64_t modifier);
 static char *
 drmGetFormatModifierNameFromAmd(uint64_t modifier);
 
+static char *
+drmGetFormatModifierNameFromAmlogic(uint64_t modifier);
+
 static const struct drmVendorInfo modifier_format_vendor_table[] = {
     { DRM_FORMAT_MOD_VENDOR_ARM, drmGetFormatModifierNameFromArm },
     { DRM_FORMAT_MOD_VENDOR_NVIDIA, drmGetFormatModifierNameFromNvidia },
     { DRM_FORMAT_MOD_VENDOR_AMD, drmGetFormatModifierNameFromAmd },
+    { DRM_FORMAT_MOD_VENDOR_AMLOGIC, drmGetFormatModifierNameFromAmlogic },
 };
 
 #ifndef AFBC_FORMAT_MOD_MODE_VALUE_MASK
@@ -445,6 +449,37 @@ drmGetFormatModifierNameFromAmd(uint64_t modifier)
 
     fclose(fp);
     return mod_amd;
+}
+
+static char *
+drmGetFormatModifierNameFromAmlogic(uint64_t modifier)
+{
+    uint64_t layout = modifier & 0xff;
+    uint64_t options = (modifier >> 8) & 0xff;
+    char *mod_amlogic = NULL;
+
+    const char *layout_str;
+    const char *opts_str;
+
+    switch (layout) {
+    case AMLOGIC_FBC_LAYOUT_BASIC:
+       layout_str = "BASIC";
+       break;
+    case AMLOGIC_FBC_LAYOUT_SCATTER:
+       layout_str = "SCATTER";
+       break;
+    default:
+       layout_str = "INVALID_LAYOUT";
+       break;
+    }
+
+    if (options & AMLOGIC_FBC_OPTION_MEM_SAVING)
+        opts_str = "MEM_SAVING";
+    else
+        opts_str = "0";
+
+    asprintf(&mod_amlogic, "FBC,LAYOUT=%s,OPTIONS=%s", layout_str, opts_str);
+    return mod_amlogic;
 }
 
 static unsigned log2_int(unsigned x)
