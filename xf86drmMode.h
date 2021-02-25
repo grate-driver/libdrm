@@ -151,6 +151,11 @@ static __inline int drm_property_type_is(drmModePropertyPtr property,
 	return property->flags & type;
 }
 
+static inline uint32_t drmModeGetPropertyType(const drmModePropertyRes *prop)
+{
+	return prop->flags & (DRM_MODE_PROP_LEGACY_TYPE | DRM_MODE_PROP_EXTENDED_TYPE);
+}
+
 typedef struct _drmModeCrtc {
 	uint32_t crtc_id;
 	uint32_t buffer_id; /**< FB id to connect to 0 = disconnect */
