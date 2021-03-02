@@ -1351,7 +1351,12 @@ drm_public drmBufInfoPtr drmGetBufInfo(int fd)
 
         retval = drmMalloc(sizeof(*retval));
         retval->count = info.count;
-        retval->list  = drmMalloc(info.count * sizeof(*retval->list));
+        if (!(retval->list = drmMalloc(info.count * sizeof(*retval->list)))) {
+                drmFree(retval);
+                drmFree(info.list);
+                return NULL;
+        }
+
         for (i = 0; i < info.count; i++) {
             retval->list[i].count     = info.list[i].count;
             retval->list[i].size      = info.list[i].size;
