@@ -1710,13 +1710,21 @@ static void set_planes(struct device *dev, struct plane_arg *p, unsigned int cou
 static void set_cursors(struct device *dev, struct pipe_arg *pipes, unsigned int count)
 {
 	uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
+	uint32_t cw = 64;
+	uint32_t ch = 64;
 	struct bo *bo;
+	uint64_t value;
 	unsigned int i;
 	int ret;
 
-	/* maybe make cursor width/height configurable some day */
-	uint32_t cw = 64;
-	uint32_t ch = 64;
+	ret = drmGetCap(dev->fd, DRM_CAP_CURSOR_WIDTH, &value);
+	if (!ret)
+		cw = value;
+
+	ret = drmGetCap(dev->fd, DRM_CAP_CURSOR_HEIGHT, &value);
+	if (!ret)
+		ch = value;
+
 
 	/* create cursor bo.. just using PATTERN_PLAIN as it has
 	 * translucent alpha
