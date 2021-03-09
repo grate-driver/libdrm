@@ -294,7 +294,7 @@ add_project_arguments('-include', '@0@'.format(config_file), language : 'c')
 inc_root = include_directories('.')
 inc_drm = include_directories('include/drm')
 
-libdrm = shared_library(
+libdrm = library(
   'drm',
   [files(
      'xf86drm.c', 'xf86drmHash.c', 'xf86drmRandom.c', 'xf86drmSL.c',
