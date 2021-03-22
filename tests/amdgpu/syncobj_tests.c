@@ -99,7 +99,7 @@ static int syncobj_command_submission_helper(uint32_t syncobj_handle, bool
 	uint32_t expired;
 	int i, r;
 	uint64_t seq_no;
-	static uint32_t *ptr;
+	uint32_t *ptr;
 
 	r = amdgpu_cs_ctx_create(device_handle, &context_handle);
 	CU_ASSERT_EQUAL(r, 0);
