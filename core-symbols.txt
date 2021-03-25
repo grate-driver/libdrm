@@ -110,6 +110,7 @@ drmModeCrtcSetGamma
 drmModeDestroyPropertyBlob
 drmModeDetachMode
 drmModeDirtyFB
+drmModeFormatModifierBlobIterNext
 drmModeFreeConnector
 drmModeFreeCrtc
 drmModeFreeEncoder

@@ -300,11 +300,9 @@ static const char *modifier_to_string(uint64_t modifier)
 
 static void dump_in_formats(struct device *dev, uint32_t blob_id)
 {
-	uint32_t i, j;
+	drmModeFormatModifierIterator iter = {0};
 	drmModePropertyBlobPtr blob;
-	struct drm_format_modifier_blob *header;
-	uint32_t *formats;
-	struct drm_format_modifier *modifiers;
+	uint32_t fmt = 0;
 
 	printf("\t\tin_formats blob decoded:\n");
 	blob = drmModeGetPropertyBlob(dev->fd, blob_id);
@@ -313,22 +311,18 @@ static void dump_in_formats(struct device *dev, uint32_t blob_id)
 		return;
 	}
 
-	header = blob->data;
-	formats = (uint32_t *) ((char *) header + header->formats_offset);
-	modifiers = (struct drm_format_modifier *)
-		((char *) header + header->modifiers_offset);
-
-	for (i = 0; i < header->count_formats; i++) {
-		printf("\t\t\t");
-		dump_fourcc(formats[i]);
-		printf(": ");
-		for (j = 0; j < header->count_modifiers; j++) {
-			uint64_t mask = 1ULL << i;
-			if (modifiers[j].formats & mask)
-				printf(" %s", modifier_to_string(modifiers[j].modifier));
+	while (drmModeFormatModifierBlobIterNext(blob, &iter)) {
+		if (!fmt || fmt != iter.fmt) {
+			printf("%s\t\t\t", !fmt ? "" : "\n");
+			fmt = iter.fmt;
+			dump_fourcc(fmt);
+			printf(": ");
 		}
-		printf("\n");
+
+		printf(" %s", modifier_to_string(iter.mod));
 	}
+
+	printf("\n");
 
 	drmModeFreePropertyBlob(blob);
 }
