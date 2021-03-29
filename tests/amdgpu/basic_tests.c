@@ -923,15 +923,20 @@ static void amdgpu_bo_eviction_test(void)
 				   0, &vram_info);
 	CU_ASSERT_EQUAL(r, 0);
 
+	r = amdgpu_query_heap_info(device_handle, AMDGPU_GEM_DOMAIN_GTT,
+				   0, &gtt_info);
+	CU_ASSERT_EQUAL(r, 0);
+
+	if (vram_info.max_allocation > gtt_info.heap_size/3) {
+		vram_info.max_allocation = gtt_info.heap_size/3;
+		gtt_info.max_allocation = vram_info.max_allocation;
+	}
+
 	r = amdgpu_bo_alloc_wrap(device_handle, vram_info.max_allocation, 4096,
 				 AMDGPU_GEM_DOMAIN_VRAM, 0, &vram_max[0]);
 	CU_ASSERT_EQUAL(r, 0);
 	r = amdgpu_bo_alloc_wrap(device_handle, vram_info.max_allocation, 4096,
 				 AMDGPU_GEM_DOMAIN_VRAM, 0, &vram_max[1]);
-	CU_ASSERT_EQUAL(r, 0);
-
-	r = amdgpu_query_heap_info(device_handle, AMDGPU_GEM_DOMAIN_GTT,
-				   0, &gtt_info);
 	CU_ASSERT_EQUAL(r, 0);
 
 	r = amdgpu_bo_alloc_wrap(device_handle, gtt_info.max_allocation, 4096,
