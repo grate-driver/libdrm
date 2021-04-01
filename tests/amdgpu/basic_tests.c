@@ -341,9 +341,10 @@ enum cs_type {
 };
 
 static const uint32_t bufferclear_cs_shader_gfx9[] = {
-    0xD1FD0000, 0x04010C08, 0x7E020204, 0x7E040205,
-    0x7E060206, 0x7E080207, 0xE01C2000, 0x80000100,
-    0xBF810000
+    0x260000ff, 0x000003ff, 0xd1fd0000, 0x04010c08,
+    0x7e020280, 0x7e040204, 0x7e060205, 0x7e080206,
+    0x7e0a0207, 0xe01c2000, 0x80000200, 0xbf8c0000,
+    0xbf810000
 };
 
 static const uint32_t bufferclear_cs_shader_registers_gfx9[][2] = {
@@ -357,8 +358,9 @@ static const uint32_t bufferclear_cs_shader_registers_gfx9[][2] = {
 static const uint32_t bufferclear_cs_shader_registers_num_gfx9 = 5;
 
 static const uint32_t buffercopy_cs_shader_gfx9[] = {
-    0xD1FD0000, 0x04010C08, 0xE00C2000, 0x80000100,
-    0xBF8C0F70, 0xE01C2000, 0x80010100, 0xBF810000
+    0x260000ff, 0x000003ff, 0xd1fd0000, 0x04010c08,
+    0x7e020280, 0xe00c2000, 0x80000200, 0xbf8c0f70,
+    0xe01c2000, 0x80010200, 0xbf810000
 };
 
 static const uint32_t preamblecache_gfx9[] = {
