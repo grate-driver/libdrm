@@ -114,7 +114,7 @@ CU_BOOL suite_vcn_tests_enable(void)
 	if (r != 0 || !info.available_rings ||
 	    (family_id < AMDGPU_FAMILY_RV &&
 	     (family_id == AMDGPU_FAMILY_AI &&
-	      chip_id != (chip_rev + 0x32)))) {  /* Arcturus */
+	      (chip_id - chip_rev) < 0x32))) {  /* Arcturus */
 		printf("\n\nThe ASIC NOT support VCN, suite disabled\n");
 		return CU_FALSE;
 	}
