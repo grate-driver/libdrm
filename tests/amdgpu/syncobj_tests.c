@@ -145,7 +145,7 @@ static int syncobj_command_submission_helper(uint32_t syncobj_handle, bool
 		AMDGPU_HW_IP_DMA;
 	chunk_data.ib_data.ip_instance = 0;
 	chunk_data.ib_data.ring = 0;
-	chunk_data.ib_data.flags = 0;
+	chunk_data.ib_data.flags = AMDGPU_IB_FLAG_EMIT_MEM_SYNC;
 
 	chunks[1].chunk_id = wait_or_signal ?
 		AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT :
