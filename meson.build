@@ -44,6 +44,8 @@ dep_threads = dependency('threads')
 
 cc = meson.get_compiler('c')
 
+android = cc.compiles('''int func() { return __ANDROID__; }''')
+
 symbols_check = find_program('symbols-check.py')
 prog_nm = find_program('nm')
 
@@ -299,20 +301,29 @@ add_project_arguments('-include', '@0@'.format(config_file), language : 'c')
 inc_root = include_directories('.')
 inc_drm = include_directories('include/drm')
 
-libdrm = library(
-  'drm',
-  [files(
-     'xf86drm.c', 'xf86drmHash.c', 'xf86drmRandom.c', 'xf86drmSL.c',
-     'xf86drmMode.c'
-   ),
-   config_file, format_mod_static_table
-  ],
-  c_args : libdrm_c_args,
-  dependencies : [dep_valgrind, dep_rt, dep_m],
-  include_directories : inc_drm,
-  version : '2.4.0',
-  install : true,
-)
+libdrm_files = [files(
+   'xf86drm.c', 'xf86drmHash.c', 'xf86drmRandom.c', 'xf86drmSL.c',
+   'xf86drmMode.c'
+  ),
+  config_file, format_mod_static_table
+]
+
+if android
+  libdrm = library('drm', libdrm_files,
+    c_args : libdrm_c_args,
+    dependencies : [dep_valgrind, dep_rt, dep_m],
+    include_directories : inc_drm,
+    install : true,
+  )
+else
+  libdrm = library('drm', libdrm_files,
+    c_args : libdrm_c_args,
+    dependencies : [dep_valgrind, dep_rt, dep_m],
+    include_directories : inc_drm,
+    install : true,
+    version: '2.4.0'
+  )
+endif
 
 test(
   'core-symbols-check',
