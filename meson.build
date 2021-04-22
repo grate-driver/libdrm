@@ -173,7 +173,7 @@ endif
 with_libkms = false
 _libkms = get_option('libkms')
 if _libkms != 'false'
-  with_libkms = _libkms == 'true' or ['linux', 'freebsd', 'dragonfly'].contains(host_machine.system())
+  with_libkms = _libkms == 'true' or (['linux', 'freebsd', 'dragonfly'].contains(host_machine.system()) and not android)
 endif
 
 # Among others FreeBSD does not have a separate dl library.
