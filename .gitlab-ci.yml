@@ -116,7 +116,7 @@ meson-arch-daily:
     - if: '$SCHEDULE == "arch-daily"'
       when: on_success
     - when: never
-  image: archlinux/base
+  image: archlinux/archlinux:base
   before_script:
     - pacman -Syu --noconfirm --needed
         base-devel
