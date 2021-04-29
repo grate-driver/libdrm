@@ -116,10 +116,9 @@ meson-arch-daily:
     - if: '$SCHEDULE == "arch-daily"'
       when: on_success
     - when: never
-  image: archlinux/archlinux:base
+  image: archlinux/archlinux:base-devel
   before_script:
     - pacman -Syu --noconfirm --needed
-        base-devel
         cairo
         cunit
         libatomic_ops
