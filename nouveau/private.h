@@ -9,17 +9,12 @@
 
 #include "nouveau.h"
 
-#ifdef DEBUG
 drm_private extern uint32_t nouveau_debug;
 #define dbg_on(lvl) (nouveau_debug & (1 << lvl))
 #define dbg(lvl, fmt, args...) do {                                            \
 	if (dbg_on((lvl)))                                                     \
 		fprintf(stderr, "nouveau: "fmt, ##args);                       \
 } while(0)
-#else
-#define dbg_on(lvl) (0)
-#define dbg(lvl, fmt, args...)
-#endif
 #define err(fmt, args...) fprintf(stderr, "nouveau: "fmt, ##args)
 
 struct nouveau_client_kref {
