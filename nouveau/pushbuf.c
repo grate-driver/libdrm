@@ -339,6 +339,8 @@ pushbuf_submit(struct nouveau_pushbuf *push, struct nouveau_object *chan)
 		req.suffix0 = nvpb->suffix0;
 		req.suffix1 = nvpb->suffix1;
 		req.vram_available = 0; /* for valgrind */
+		if (dbg_on(1))
+			req.vram_available |= NOUVEAU_GEM_PUSHBUF_SYNC;
 		req.gart_available = 0;
 
 		if (dbg_on(0))

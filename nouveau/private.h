@@ -13,6 +13,7 @@
 
 /*
  * 0x00000001 dump all pushbuffers
+ * 0x00000002 submit pushbuffers synchronously
  * 0x80000000 if compiled with SIMULATE return -EINVAL for all pb submissions
  */
 drm_private extern uint32_t nouveau_debug;
