@@ -1,6 +1,8 @@
 #ifndef __NOUVEAU_LIBDRM_PRIVATE_H__
 #define __NOUVEAU_LIBDRM_PRIVATE_H__
 
+#include <stdio.h>
+
 #include <libdrm_macros.h>
 #include <xf86drm.h>
 #include <xf86atomic.h>
@@ -10,12 +12,13 @@
 #include "nouveau.h"
 
 drm_private extern uint32_t nouveau_debug;
+drm_private extern FILE *nouveau_out;
 #define dbg_on(lvl) (nouveau_debug & (1 << lvl))
 #define dbg(lvl, fmt, args...) do {                                            \
 	if (dbg_on((lvl)))                                                     \
-		fprintf(stderr, "nouveau: "fmt, ##args);                       \
+		fprintf(nouveau_out, "nouveau: "fmt, ##args);                       \
 } while(0)
-#define err(fmt, args...) fprintf(stderr, "nouveau: "fmt, ##args)
+#define err(fmt, args...) fprintf(nouveau_out, "nouveau: "fmt, ##args)
 
 struct nouveau_client_kref {
 	struct drm_nouveau_gem_pushbuf_bo *kref;
