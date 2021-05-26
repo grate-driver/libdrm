@@ -273,6 +273,29 @@ amdgpu_command_submission_write_linear_helper_with_secure(amdgpu_device_handle
 							  unsigned ip_type,
 							  bool secure);
 
+
+
+/**
+ * Initialize hotunplug test suite
+ */
+int suite_hotunplug_tests_init();
+
+/**
+ * Deinitialize hotunplug test suite
+ */
+int suite_hotunplug_tests_clean();
+
+/**
+ * Decide if the suite is enabled by default or not.
+ */
+CU_BOOL suite_hotunplug_tests_enable(void);
+
+/**
+ * Tests in uvd enc test suite
+ */
+extern CU_TestInfo hotunplug_tests[];
+
+
 /**
  * Helper functions
  */

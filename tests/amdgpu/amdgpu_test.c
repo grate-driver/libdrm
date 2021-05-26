@@ -66,6 +66,7 @@
 #define RAS_TESTS_STR "RAS Tests"
 #define SYNCOBJ_TIMELINE_TESTS_STR "SYNCOBJ TIMELINE Tests"
 #define SECURITY_TESTS_STR "Security Tests"
+#define HOTUNPLUG_TESTS_STR "Hotunplug Tests"
 
 /**
  *  Open handles for amdgpu devices
@@ -144,6 +145,12 @@ static CU_SuiteInfo suites[] = {
 		.pCleanupFunc = suite_security_tests_clean,
 		.pTests = security_tests,
 	},
+	{
+		.pName = HOTUNPLUG_TESTS_STR,
+		.pInitFunc = suite_hotunplug_tests_init,
+		.pCleanupFunc = suite_hotunplug_tests_clean,
+		.pTests = hotunplug_tests,
+	},
 
 	CU_SUITE_INFO_NULL,
 };
@@ -204,6 +211,10 @@ static Suites_Active_Status suites_active_stat[] = {
 		{
 			.pName = SECURITY_TESTS_STR,
 			.pActive = suite_security_tests_enable,
+		},
+		{
+			.pName = HOTUNPLUG_TESTS_STR,
+			.pActive = suite_hotunplug_tests_enable,
 		},
 };
 
