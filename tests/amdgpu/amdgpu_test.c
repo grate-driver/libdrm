@@ -37,6 +37,13 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <linux/limits.h>
+#ifdef MAJOR_IN_MKDEV
+#include <sys/mkdev.h>
+#endif
+#ifdef MAJOR_IN_SYSMACROS
+#include <sys/sysmacros.h>
+#endif
 
 #include "drm.h"
 #include "xf86drmMode.h"
@@ -339,12 +346,13 @@ static int amdgpu_open_devices(int open_render_node)
 
 /* Close AMD devices.
  */
-static void amdgpu_close_devices()
+void amdgpu_close_devices()
 {
 	int i;
 	for (i = 0; i < MAX_CARDS_SUPPORTED; i++)
-		if (drm_amdgpu[i] >=0)
+		if (drm_amdgpu[i] >=0) {
 			close(drm_amdgpu[i]);
+		}
 }
 
 /* Print AMD devices information */
@@ -523,6 +531,79 @@ static void amdgpu_disable_suites()
 			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
 }
 
+int test_device_index;
+
+int amdgpu_open_device_on_test_index(int render_node)
+{
+	int i;
+
+	if (amdgpu_open_devices(open_render_node) <= 0) {
+		perror("Cannot open AMDGPU device");
+		return -1;
+	}
+
+	if (test_device_index >= 0) {
+		/* Most tests run on device of drm_amdgpu[0].
+		 * Swap the chosen device to drm_amdgpu[0].
+		 */
+		i = drm_amdgpu[0];
+		drm_amdgpu[0] = drm_amdgpu[test_device_index];
+		drm_amdgpu[test_device_index] = i;
+	}
+
+	return 0;
+
+
+}
+
+
+static bool amdgpu_node_is_drm(int maj, int min)
+{
+#ifdef __linux__
+    char path[64];
+    struct stat sbuf;
+
+    snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device/drm",
+             maj, min);
+    return stat(path, &sbuf) == 0;
+#elif defined(__FreeBSD__)
+    char name[SPECNAMELEN];
+
+    if (!devname_r(makedev(maj, min), S_IFCHR, name, sizeof(name)))
+      return 0;
+    /* Handle drm/ and dri/ as both are present in different FreeBSD version
+     * FreeBSD on amd64/i386/powerpc external kernel modules create node in
+     * in /dev/drm/ and links in /dev/dri while a WIP in kernel driver creates
+     * only device nodes in /dev/dri/ */
+    return (!strncmp(name, "drm/", 4) || !strncmp(name, "dri/", 4));
+#else
+    return maj == DRM_MAJOR;
+#endif
+}
+
+char *amdgpu_get_device_from_fd(int fd)
+{
+#ifdef __linux__
+    struct stat sbuf;
+    char path[PATH_MAX + 1];
+    unsigned int maj, min;
+
+    if (fstat(fd, &sbuf))
+        return NULL;
+
+    maj = major(sbuf.st_rdev);
+    min = minor(sbuf.st_rdev);
+
+    if (!amdgpu_node_is_drm(maj, min) || !S_ISCHR(sbuf.st_mode))
+        return NULL;
+
+    snprintf(path, sizeof(path), "/sys/dev/char/%d:%d/device", maj, min);
+    return strdup(path);
+#else
+    return NULL;
+#endif
+}
+
 /* The main() function for setting up and running the tests.
  * Returns a CUE_SUCCESS on successful running, another
  * CUnit error code on failure.
@@ -538,7 +619,6 @@ int main(int argc, char **argv)
 	int display_devices = 0;/* By default not to display devices' info */
 	CU_pSuite pSuite = NULL;
 	CU_pTest  pTest  = NULL;
-	int test_device_index;
 	int display_list = 0;
 	int force_run = 0;
 

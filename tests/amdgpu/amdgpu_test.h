@@ -476,4 +476,8 @@ void amdgpu_test_exec_cs_helper_raw(amdgpu_device_handle device_handle,
 				    struct amdgpu_cs_request *ibs_request,
 				    bool secure);
 
+void amdgpu_close_devices();
+int amdgpu_open_device_on_test_index(int render_node);
+char *amdgpu_get_device_from_fd(int fd);
+
 #endif  /* #ifdef _AMDGPU_TEST_H_ */
