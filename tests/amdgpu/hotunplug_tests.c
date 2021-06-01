@@ -304,10 +304,52 @@ static void amdgpu_hotunplug_with_cs(void)
 	amdgpu_hotunplug_test(true);
 }
 
+static void amdgpu_hotunplug_with_exported_bo(void)
+{
+	int r;
+	uint32_t dma_buf_fd;
+	unsigned int *ptr;
+	amdgpu_bo_handle bo_handle;
+
+	struct amdgpu_bo_alloc_request request = {
+		.alloc_size = 4096,
+		.phys_alignment = 4096,
+		.preferred_heap = AMDGPU_GEM_DOMAIN_GTT,
+		.flags = 0,
+	};
+
+	r = amdgpu_hotunplug_setup_test();
+	CU_ASSERT_EQUAL(r , 0);
+
+	amdgpu_bo_alloc(device_handle, &request, &bo_handle);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_export(bo_handle, amdgpu_bo_handle_type_dma_buf_fd, &dma_buf_fd);
+	CU_ASSERT_EQUAL(r, 0);
+
+	ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, dma_buf_fd, 0);
+	CU_ASSERT_NOT_EQUAL(ptr,  MAP_FAILED);
+
+	r = amdgpu_hotunplug_remove();
+	CU_ASSERT_EQUAL(r > 0, 1);
+
+	amdgpu_bo_free(bo_handle);
+
+	r = amdgpu_hotunplug_teardown_test();
+	CU_ASSERT_EQUAL(r , 0);
+
+	*ptr = 0xdeafbeef;
+
+	munmap(ptr, 4096);
+	close (dma_buf_fd);
+
+	r = amdgpu_hotunplug_rescan();
+	CU_ASSERT_EQUAL(r > 0, 1);
+}
+
 CU_TestInfo hotunplug_tests[] = {
 	{ "Unplug card and rescan the bus to plug it back", amdgpu_hotunplug_simple },
 	{ "Same as first test but with command submission", amdgpu_hotunplug_with_cs },
+	{ "Unplug with exported bo", amdgpu_hotunplug_with_exported_bo },
 	CU_TEST_INFO_NULL,
 };
-
-
