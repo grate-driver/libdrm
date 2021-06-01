@@ -626,12 +626,13 @@ CU_BOOL suite_basic_tests_enable(void)
 					     &minor_version, &device_handle))
 		return CU_FALSE;
 
-	if (amdgpu_device_deinitialize(device_handle))
-		return CU_FALSE;
 
 	family_id = device_handle->info.family_id;
 	chip_id = device_handle->info.chip_external_rev;
 	chip_rev = device_handle->info.chip_rev;
+
+	if (amdgpu_device_deinitialize(device_handle))
+		return CU_FALSE;
 
 	/* disable gfx engine basic test cases for some asics have no CPG */
 	if (asic_is_gfx_pipe_removed(family_id, chip_id, chip_rev)) {
