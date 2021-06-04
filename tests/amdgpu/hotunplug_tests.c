@@ -141,7 +141,6 @@ static int amdgpu_hotunplug_setup_test()
 	strcat(sysfs_remove, "/remove");
 
 	return 0;
-
 }
 
 static int amdgpu_hotunplug_teardown_test()
@@ -347,9 +346,100 @@ static void amdgpu_hotunplug_with_exported_bo(void)
 	CU_ASSERT_EQUAL(r > 0, 1);
 }
 
+static void amdgpu_hotunplug_with_exported_fence(void)
+{
+	amdgpu_bo_handle ib_result_handle;
+	void *ib_result_cpu;
+	uint64_t ib_result_mc_address;
+	uint32_t *ptr, sync_obj_handle, sync_obj_handle2;
+	int i, r;
+	amdgpu_bo_list_handle bo_list;
+	amdgpu_va_handle va_handle;
+	uint32_t major2, minor2;
+	amdgpu_device_handle device2;
+	amdgpu_context_handle context;
+	struct amdgpu_cs_request ibs_request;
+	struct amdgpu_cs_ib_info ib_info;
+	struct amdgpu_cs_fence fence_status = {0};
+	int shared_fd;
+
+	r = amdgpu_hotunplug_setup_test();
+	CU_ASSERT_EQUAL(r , 0);
+
+	r = amdgpu_device_initialize(drm_amdgpu[1], &major2, &minor2, &device2);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_cs_ctx_create(device_handle, &context);
+	CU_ASSERT_EQUAL(r, 0);
+
+	r = amdgpu_bo_alloc_and_map(device_handle, 4096, 4096,
+				    AMDGPU_GEM_DOMAIN_GTT, 0,
+				    &ib_result_handle, &ib_result_cpu,
+				    &ib_result_mc_address, &va_handle);
+	CU_ASSERT_EQUAL(r, 0);
+
+	ptr = ib_result_cpu;
+	for (i = 0; i < 16; ++i)
+		ptr[i] = GFX_COMPUTE_NOP;
+
+	r = amdgpu_bo_list_create(device_handle, 1, &ib_result_handle, NULL, &bo_list);
+	CU_ASSERT_EQUAL(r, 0);
+
+	memset(&ib_info, 0, sizeof(struct amdgpu_cs_ib_info));
+	ib_info.ib_mc_address = ib_result_mc_address;
+	ib_info.size = 16;
+
+	memset(&ibs_request, 0, sizeof(struct amdgpu_cs_request));
+	ibs_request.ip_type = AMDGPU_HW_IP_GFX;
+	ibs_request.ring = 0;
+	ibs_request.number_of_ibs = 1;
+	ibs_request.ibs = &ib_info;
+	ibs_request.resources = bo_list;
+
+	CU_ASSERT_EQUAL(amdgpu_cs_submit(context, 0, &ibs_request, 1), 0);
+
+	fence_status.context = context;
+	fence_status.ip_type = AMDGPU_HW_IP_GFX;
+	fence_status.ip_instance = 0;
+	fence_status.fence = ibs_request.seq_no;
+
+	CU_ASSERT_EQUAL(amdgpu_cs_fence_to_handle(device_handle, &fence_status,
+						AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ,
+						&sync_obj_handle),
+						0);
+
+	CU_ASSERT_EQUAL(amdgpu_cs_export_syncobj(device_handle, sync_obj_handle, &shared_fd), 0);
+
+	CU_ASSERT_EQUAL(amdgpu_cs_import_syncobj(device2, shared_fd, &sync_obj_handle2), 0);
+
+	CU_ASSERT_EQUAL(amdgpu_cs_destroy_syncobj(device_handle, sync_obj_handle), 0);
+
+	CU_ASSERT_EQUAL(amdgpu_bo_list_destroy(bo_list), 0);
+	CU_ASSERT_EQUAL(amdgpu_bo_unmap_and_free(ib_result_handle, va_handle,
+				 ib_result_mc_address, 4096), 0);
+	CU_ASSERT_EQUAL(amdgpu_cs_ctx_free(context), 0);
+
+	r = amdgpu_hotunplug_remove();
+	CU_ASSERT_EQUAL(r > 0, 1);
+
+	CU_ASSERT_EQUAL(amdgpu_cs_syncobj_wait(device2, &sync_obj_handle2, 1, 100000000, 0, NULL), 0);
+
+	CU_ASSERT_EQUAL(amdgpu_cs_destroy_syncobj(device2, sync_obj_handle2), 0);
+
+	amdgpu_device_deinitialize(device2);
+
+	r = amdgpu_hotunplug_teardown_test();
+	CU_ASSERT_EQUAL(r , 0);
+
+	r = amdgpu_hotunplug_rescan();
+	CU_ASSERT_EQUAL(r > 0, 1);
+}
+
+
 CU_TestInfo hotunplug_tests[] = {
 	{ "Unplug card and rescan the bus to plug it back", amdgpu_hotunplug_simple },
 	{ "Same as first test but with command submission", amdgpu_hotunplug_with_cs },
 	{ "Unplug with exported bo", amdgpu_hotunplug_with_exported_bo },
+	{ "Unplug with exported fence", amdgpu_hotunplug_with_exported_fence },
 	CU_TEST_INFO_NULL,
 };

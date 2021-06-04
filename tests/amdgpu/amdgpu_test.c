@@ -449,7 +449,8 @@ static void amdgpu_disable_suites()
 {
 	amdgpu_device_handle device_handle;
 	uint32_t major_version, minor_version, family_id;
-	int i;
+	drmDevicePtr devices[MAX_CARDS_SUPPORTED];
+	int i, drm_count;
 	int size = sizeof(suites_active_stat) / sizeof(suites_active_stat[0]);
 
 	if (amdgpu_device_initialize(drm_amdgpu[0], &major_version,
@@ -460,6 +461,8 @@ static void amdgpu_disable_suites()
 
 	if (amdgpu_device_deinitialize(device_handle))
 		return;
+
+	drm_count = drmGetDevices2(0, devices, MAX_CARDS_SUPPORTED);
 
 	/* Set active status for suites based on their policies */
 	for (i = 0; i < size; ++i)
@@ -539,6 +542,11 @@ static void amdgpu_disable_suites()
 	/* This test was ran on GFX9 only */
 	//if (family_id < AMDGPU_FAMILY_AI || family_id > AMDGPU_FAMILY_RV)
 		if (amdgpu_set_test_active(BASIC_TESTS_STR, "GPU reset Test", CU_FALSE))
+			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
+
+	/* You need at least 2 devices for this	*/
+	if (drm_count < 2)
+		if (amdgpu_set_test_active(HOTUNPLUG_TESTS_STR, "Unplug with exported fence", CU_FALSE))
 			fprintf(stderr, "test deactivation failed - %s\n", CU_get_error_msg());
 }
 
