@@ -135,7 +135,9 @@
 67C2,	01,	AMD Radeon (TM) Pro V7350x2
 67C2,	02,	AMD Radeon (TM) Pro V7300X
 67C4,	00,	AMD Radeon (TM) Pro WX 7100 Graphics
+67C4,	80,	AMD Radeon (TM) E9560/E9565 Graphics
 67C7,	00,	AMD Radeon (TM) Pro WX 5100 Graphics
+67C7,	80,	AMD Radeon (TM) Pro E9390 Graphics
 67C0,	00,	AMD Radeon (TM) Pro WX 7100 Graphics
 67D0,	01,	AMD Radeon (TM) Pro V7350x2
 67D0,	02,	AMD Radeon (TM) Pro V7300X
