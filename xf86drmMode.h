@@ -142,18 +142,15 @@ typedef struct _drmModeProperty {
 	uint32_t *blob_ids; /* store the blob IDs */
 } drmModePropertyRes, *drmModePropertyPtr;
 
-static inline int drm_property_type_is(const drmModePropertyPtr property,
-		uint32_t type)
-{
-	/* instanceof for props.. handles extended type vs original types: */
-	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
-		return (property->flags & DRM_MODE_PROP_EXTENDED_TYPE) == type;
-	return property->flags & type;
-}
-
 static inline uint32_t drmModeGetPropertyType(const drmModePropertyRes *prop)
 {
 	return prop->flags & (DRM_MODE_PROP_LEGACY_TYPE | DRM_MODE_PROP_EXTENDED_TYPE);
+}
+
+static inline int drm_property_type_is(const drmModePropertyPtr property,
+		uint32_t type)
+{
+	return drmModeGetPropertyType(property) == type;
 }
 
 typedef struct _drmModeCrtc {
