@@ -37,7 +37,12 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <stdint.h>
+#ifdef __linux__
 #include <linux/limits.h>
+#elif __FreeBSD__
+/* SPECNAMELEN in FreeBSD is defined here: */
+#include <sys/param.h>
+#endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
 #endif
