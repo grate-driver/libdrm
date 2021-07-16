@@ -315,7 +315,7 @@ static void amdgpu_secure_bounce(void)
 				  SECURE_BUFFER_SIZE,
 				  page_size,
 				  AMDGPU_GEM_DOMAIN_VRAM,
-				  0 /* AMDGPU_GEM_CREATE_ENCRYPTED */,
+				  AMDGPU_GEM_CREATE_ENCRYPTED,
 				  &bob);
 	if (res) {
 		PRINT_ERROR(res);
@@ -323,9 +323,9 @@ static void amdgpu_secure_bounce(void)
 		goto Out_free_Alice;
 	}
 
-	/* sDMA clear copy from Alice to Bob.
+	/* sDMA TMZ copy from Alice to Bob.
 	 */
-	amdgpu_bo_lcopy(&sb_ctx, &bob, &alice, SECURE_BUFFER_SIZE, 0);
+	amdgpu_bo_lcopy(&sb_ctx, &bob, &alice, SECURE_BUFFER_SIZE, 1);
 
 	/* Move Bob to the GTT domain.
 	 */
