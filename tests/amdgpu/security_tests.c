@@ -336,9 +336,9 @@ static void amdgpu_secure_bounce(void)
 		goto Out_free_all;
 	}
 
-	/* sDMA clear copy from Bob to Alice.
+	/* sDMA TMZ copy from Bob to Alice.
 	 */
-	amdgpu_bo_lcopy(&sb_ctx, &alice, &bob, SECURE_BUFFER_SIZE, 0);
+	amdgpu_bo_lcopy(&sb_ctx, &alice, &bob, SECURE_BUFFER_SIZE, 1);
 
 	/* Verify the contents of Alice.
 	 */
