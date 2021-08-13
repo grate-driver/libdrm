@@ -3998,6 +3998,7 @@ free_device:
 static int drm_usb_dev_path(int maj, int min, char *path, size_t len)
 {
     char *value, *tmp_path, *slash;
+    bool usb_device, usb_interface;
 
     snprintf(path, len, "/sys/dev/char/%d:%d/device", maj, min);
 
@@ -4005,9 +4006,13 @@ static int drm_usb_dev_path(int maj, int min, char *path, size_t len)
     if (!value)
         return -ENOENT;
 
-    if (strcmp(value, "usb_device") == 0)
+    usb_device = strcmp(value, "usb_device") == 0;
+    usb_interface = strcmp(value, "usb_interface") == 0;
+    free(value);
+
+    if (usb_device)
         return 0;
-    if (strcmp(value, "usb_interface") != 0)
+    if (!usb_interface)
         return -ENOTSUP;
 
     /* The parent of a usb_interface is a usb_device */
