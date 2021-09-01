@@ -834,6 +834,8 @@ extern int drmGetNodeTypeFromFd(int fd);
 extern int drmPrimeHandleToFD(int fd, uint32_t handle, uint32_t flags, int *prime_fd);
 extern int drmPrimeFDToHandle(int fd, int prime_fd, uint32_t *handle);
 
+extern int drmCloseBufferHandle(int fd, uint32_t handle);
+
 extern char *drmGetPrimaryDeviceNameFromFd(int fd);
 extern char *drmGetRenderDeviceNameFromFd(int fd);
 

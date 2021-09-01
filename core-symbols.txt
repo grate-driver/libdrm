@@ -22,6 +22,7 @@ drmAuthMagic
 drmAvailable
 drmCheckModesettingSupported
 drmClose
+drmCloseBufferHandle
 drmCloseOnce
 drmCommandNone
 drmCommandRead

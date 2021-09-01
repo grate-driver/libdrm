@@ -3271,6 +3271,15 @@ drm_public int drmPrimeFDToHandle(int fd, int prime_fd, uint32_t *handle)
     return 0;
 }
 
+drm_public int drmCloseBufferHandle(int fd, uint32_t handle)
+{
+    struct drm_gem_close args;
+
+    memclear(args);
+    args.handle = handle;
+    return drmIoctl(fd, DRM_IOCTL_GEM_CLOSE, &args);
+}
+
 static char *drmGetMinorNameForFD(int fd, int type)
 {
 #ifdef __linux__
