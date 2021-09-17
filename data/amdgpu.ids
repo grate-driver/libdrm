@@ -137,7 +137,7 @@
 67C4,	00,	AMD Radeon (TM) Pro WX 7100 Graphics
 67C4,	80,	AMD Radeon (TM) E9560/E9565 Graphics
 67C7,	00,	AMD Radeon (TM) Pro WX 5100 Graphics
-67C7,	80,	AMD Radeon (TM) Pro E9390 Graphics
+67C7,	80,	AMD Radeon (TM) E9390 Graphics
 67C0,	00,	AMD Radeon (TM) Pro WX 7100 Graphics
 67D0,	01,	AMD Radeon (TM) Pro V7350x2
 67D0,	02,	AMD Radeon (TM) Pro V7300X
@@ -279,9 +279,13 @@
 73BF,	C1,	AMD Radeon RX 6800 XT
 73BF,	C3,	AMD Radeon RX 6800
 73DF,	C1,	AMD Radeon RX 6700 XT
+73DF,	C3,	AMD Radeon RX 6800M
 73DF,	C5,	AMD Radeon RX 6700 XT
+73DF,	CF,	AMD Radeon RX 6700M
 73E1,	00,	AMD Radeon PRO W6600M
 73E3,	00,	AMD Radeon PRO W6600
+73FF,	C1,	AMD Radeon RX 6600 XT
+73FF,	C3,	AMD Radeon RX 6600M
 9874,	C4,	AMD Radeon R7 Graphics
 9874,	C5,	AMD Radeon R6 Graphics
 9874,	C6,	AMD Radeon R6 Graphics
