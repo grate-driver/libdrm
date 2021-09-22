@@ -210,29 +210,15 @@ static bool is_x_t_amd_gfx9_tile(uint64_t tile)
     return false;
 }
 
-static char *
-drmGetFormatModifierNameFromArm(uint64_t modifier)
+static bool
+drmGetAfbcFormatModifierNameFromArm(uint64_t modifier, FILE *fp)
 {
-    uint64_t type = (modifier >> 52) & 0xf;
     uint64_t mode_value = modifier & AFBC_FORMAT_MOD_MODE_VALUE_MASK;
     uint64_t block_size = mode_value & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK;
-
-    FILE *fp;
-    char *modifier_name = NULL;
-    size_t size = 0;
-    unsigned int i;
 
     const char *block = NULL;
     const char *mode = NULL;
     bool did_print_mode = false;
-
-    /* misc type is already handled by the static table */
-    if (type != DRM_FORMAT_MOD_ARM_TYPE_AFBC)
-        return NULL;
-
-    fp = open_memstream(&modifier_name, &size);
-    if (!fp)
-        return NULL;
 
     /* add block, can only have a (single) block */
     switch (block_size) {
@@ -251,15 +237,13 @@ drmGetFormatModifierNameFromArm(uint64_t modifier)
     }
 
     if (!block) {
-        fclose(fp);
-        free(modifier_name);
-        return NULL;
+        return false;
     }
 
     fprintf(fp, "BLOCK_SIZE=%s,", block);
 
     /* add mode */
-    for (i = 0; i < ARRAY_SIZE(arm_mode_value_table); i++) {
+    for (unsigned int i = 0; i < ARRAY_SIZE(arm_mode_value_table); i++) {
         if (arm_mode_value_table[i].modifier & mode_value) {
             mode = arm_mode_value_table[i].modifier_name;
             if (!did_print_mode) {
@@ -271,7 +255,87 @@ drmGetFormatModifierNameFromArm(uint64_t modifier)
         }
     }
 
+    return true;
+}
+
+static bool
+drmGetAfrcFormatModifierNameFromArm(uint64_t modifier, FILE *fp)
+{
+    for (unsigned int i = 0; i < 2; ++i) {
+        uint64_t coding_unit_block =
+          (modifier >> (i * 4)) & AFRC_FORMAT_MOD_CU_SIZE_MASK;
+        const char *coding_unit_size = NULL;
+
+        switch (coding_unit_block) {
+        case AFRC_FORMAT_MOD_CU_SIZE_16:
+            coding_unit_size = "CU_16";
+            break;
+        case AFRC_FORMAT_MOD_CU_SIZE_24:
+            coding_unit_size = "CU_24";
+            break;
+        case AFRC_FORMAT_MOD_CU_SIZE_32:
+            coding_unit_size = "CU_32";
+            break;
+        }
+
+        if (!coding_unit_size) {
+            if (i == 0) {
+                return false;
+            }
+            break;
+        }
+
+        if (i == 0) {
+            fprintf(fp, "P0=%s,", coding_unit_size);
+        } else {
+            fprintf(fp, "P12=%s,", coding_unit_size);
+        }
+    }
+
+    bool scan_layout =
+        (modifier & AFRC_FORMAT_MOD_LAYOUT_SCAN) == AFRC_FORMAT_MOD_LAYOUT_SCAN;
+    if (scan_layout) {
+        fprintf(fp, "SCAN");
+    } else {
+        fprintf(fp, "ROT");
+    }
+    return true;
+}
+
+static char *
+drmGetFormatModifierNameFromArm(uint64_t modifier)
+{
+    uint64_t type = (modifier >> 52) & 0xf;
+
+    FILE *fp;
+    size_t size = 0;
+    char *modifier_name = NULL;
+    bool result = false;
+
+    fp = open_memstream(&modifier_name, &size);
+    if (!fp)
+        return NULL;
+
+    switch (type) {
+    case DRM_FORMAT_MOD_ARM_TYPE_AFBC:
+        result = drmGetAfbcFormatModifierNameFromArm(modifier, fp);
+        break;
+    case DRM_FORMAT_MOD_ARM_TYPE_AFRC:
+        result = drmGetAfrcFormatModifierNameFromArm(modifier, fp);
+        break;
+    /* misc type is already handled by the static table */
+    case DRM_FORMAT_MOD_ARM_TYPE_MISC:
+    default:
+        result = false;
+        break;
+    }
+
     fclose(fp);
+    if (!result) {
+        free(modifier_name);
+        return NULL;
+    }
+
     return modifier_name;
 }
 
