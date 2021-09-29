@@ -33,3 +33,14 @@ if dep_cunit.found()
     install : with_install_tests,
   )
 endif
+
+amdgpu_stress = executable(
+  'amdgpu_stress',
+  files(
+    'amdgpu_stress.c'
+  ),
+  dependencies : [dep_threads, dep_atomic_ops],
+  include_directories : [inc_root, inc_drm, include_directories('../../amdgpu')],
+  link_with : [libdrm, libdrm_amdgpu],
+  install : with_install_tests,
+)
