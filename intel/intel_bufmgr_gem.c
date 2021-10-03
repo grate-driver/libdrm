@@ -1152,7 +1152,6 @@ drm_intel_gem_bo_free(drm_intel_bo *bo)
 {
 	drm_intel_bufmgr_gem *bufmgr_gem = (drm_intel_bufmgr_gem *) bo->bufmgr;
 	drm_intel_bo_gem *bo_gem = (drm_intel_bo_gem *) bo;
-	struct drm_gem_close close;
 	int ret;
 
 	DRMLISTDEL(&bo_gem->vma_list);
@@ -1176,11 +1175,9 @@ drm_intel_gem_bo_free(drm_intel_bo *bo)
 	HASH_DELETE(handle_hh, bufmgr_gem->handle_table, bo_gem);
 
 	/* Close this object */
-	memclear(close);
-	close.handle = bo_gem->gem_handle;
-	ret = drmIoctl(bufmgr_gem->fd, DRM_IOCTL_GEM_CLOSE, &close);
+	ret = drmCloseBufferHandle(bufmgr_gem->fd, bo_gem->gem_handle);
 	if (ret != 0) {
-		DBG("DRM_IOCTL_GEM_CLOSE %d failed (%s): %s\n",
+		DBG("drmCloseBufferHandle %d failed (%s): %s\n",
 		    bo_gem->gem_handle, bo_gem->name, strerror(errno));
 	}
 	free(bo);
@@ -1963,7 +1960,6 @@ static void
 drm_intel_bufmgr_gem_destroy(drm_intel_bufmgr *bufmgr)
 {
 	drm_intel_bufmgr_gem *bufmgr_gem = (drm_intel_bufmgr_gem *) bufmgr;
-	struct drm_gem_close close_bo;
 	int i, ret;
 
 	free(bufmgr_gem->exec2_objects);
@@ -1988,9 +1984,8 @@ drm_intel_bufmgr_gem_destroy(drm_intel_bufmgr *bufmgr)
 
 	/* Release userptr bo kept hanging around for optimisation. */
 	if (bufmgr_gem->userptr_active.ptr) {
-		memclear(close_bo);
-		close_bo.handle = bufmgr_gem->userptr_active.handle;
-		ret = drmIoctl(bufmgr_gem->fd, DRM_IOCTL_GEM_CLOSE, &close_bo);
+		ret = drmCloseBufferHandle(bufmgr_gem->fd,
+					   bufmgr_gem->userptr_active.handle);
 		free(bufmgr_gem->userptr_active.ptr);
 		if (ret)
 			fprintf(stderr,
