@@ -12,47 +12,142 @@
 # main repository, it's recommended to remove the image from the source
 # repository's container registry, so that the image from the main
 # repository's registry will be used there as well.
-variables:
-  UPSTREAM_REPO: mesa/drm
-  DEBIAN_TAG: "2021-02-11"
-  DEBIAN_VERSION: buster-slim
-  DEBIAN_IMAGE: "$CI_REGISTRY_IMAGE/debian/$DEBIAN_VERSION:$DEBIAN_TAG"
+.templates_sha: &template_sha 567700e483aabed992d0a4fea84994a0472deff6 # see https://docs.gitlab.com/ee/ci/yaml/#includefile
 
 include:
-  - project: 'wayland/ci-templates'
-    ref: 0a9bdd33a98f05af6761ab118b5074952242aab0
-    file: '/templates/debian.yml'
+  - project: 'freedesktop/ci-templates'
+    ref: *template_sha
+    file:
+    - '/templates/debian.yml'
+    - '/templates/ci-fairy.yml'
+
+variables:
+  FDO_UPSTREAM_REPO: mesa/drm
+  FDO_REPO_SUFFIX: "$BUILD_OS/$BUILD_ARCH"
 
 stages:
-  - containers
-  - build
+  - "Base container"
+  - "Build"
 
-
-# When & how to run the CI
-.ci-run-policy:
-  except:
-    - schedules
-  retry:
-    max: 2
-    when:
-      - runner_system_failure
+.ci-rules:
+  rules:
+    - when: on_success
 
 # CONTAINERS
 
-debian:
-  stage: containers
-  extends:
-    - .ci-run-policy
-    - .debian@container-ifnot-exists
+.os-debian:
   variables:
-    GIT_STRATEGY: none # no need to pull the whole tree for rebuilding the image
-    DEBIAN_EXEC: 'bash .gitlab-ci/debian-install.sh'
+    BUILD_OS: debian
+    FDO_DISTRIBUTION_VERSION: buster
+    FDO_DISTRIBUTION_PACKAGES: 'build-essential docbook-xsl libatomic-ops-dev libcairo2-dev libcunit1-dev libpciaccess-dev meson ninja-build pkg-config python3 python3-pip python3-wheel python3-setuptools python3-docutils valgrind'
+    FDO_DISTRIBUTION_EXEC: 'pip3 install meson==0.52.1'
+    # bump this tag every time you change something which requires rebuilding the
+    # base image
+    FDO_DISTRIBUTION_TAG: "2021-08-03.0"
 
+.debian-x86_64:
+  extends:
+    - .os-debian
+  variables:
+    BUILD_ARCH: "x86-64"
+
+.debian-aarch64:
+  extends:
+    - .os-debian
+  variables:
+    BUILD_ARCH: "aarch64"
+
+.debian-armv7:
+  extends:
+    - .os-debian
+  variables:
+    BUILD_ARCH: "armv7"
+
+# Build our base container image, which contains the core distribution, the
+# toolchain, and all our build dependencies. This will be reused in the build
+# stage.
+x86_64-debian-container_prep:
+  extends:
+    - .ci-rules
+    - .debian-x86_64
+    - .fdo.container-build@debian
+  stage: "Base container"
+  variables:
+    GIT_STRATEGY: none
+
+aarch64-debian-container_prep:
+  extends:
+    - .ci-rules
+    - .debian-aarch64
+    - .fdo.container-build@debian
+  tags:
+    - aarch64
+  stage: "Base container"
+  variables:
+    GIT_STRATEGY: none
+
+armv7-debian-container_prep:
+  extends:
+    - .ci-rules
+    - .debian-armv7
+    - .fdo.container-build@debian
+  tags:
+    - aarch64
+  stage: "Base container"
+  variables:
+    GIT_STRATEGY: none
+    FDO_BASE_IMAGE: "arm32v7/debian:$FDO_DISTRIBUTION_VERSION"
+
+# Core build environment.
+.build-env:
+  variables:
+    MESON_BUILD_TYPE: "-Dbuildtype=debug -Doptimization=0 -Db_sanitize=address,undefined"
+
+# OS/architecture-specific variants
+.build-env-debian-x86_64:
+  extends:
+    - .fdo.suffixed-image@debian
+    - .debian-x86_64
+    - .build-env
+  needs:
+    - job: x86_64-debian-container_prep
+      artifacts: false
+
+.build-env-debian-aarch64:
+  extends:
+    - .fdo.suffixed-image@debian
+    - .debian-aarch64
+    - .build-env
+  variables:
+    # At least with the versions we have, the LSan runtime makes fork unusably
+    # slow on AArch64, which is bad news since the test suite decides to fork
+    # for every single subtest. For now, in order to get AArch64 builds and
+    # tests into CI, just assume that we're not going to leak any more on
+    # AArch64 than we would on ARMv7 or x86-64.
+    ASAN_OPTIONS: "detect_leaks=0"
+  tags:
+    - aarch64
+  needs:
+    - job: aarch64-debian-container_prep
+      artifacts: false
+
+.build-env-debian-armv7:
+  extends:
+    - .fdo.suffixed-image@debian
+    - .debian-armv7
+    - .build-env
+  tags:
+    - aarch64
+  needs:
+    - job: armv7-debian-container_prep
+      artifacts: false
 
 # BUILD
 
-.meson-build:
-  stage: build
+.do-build:
+  extends:
+    - .ci-rules
+  stage: "Build"
   variables:
     GIT_DEPTH: 10
   script:
@@ -74,7 +169,6 @@ debian:
         -D valgrind=auto
         -D vc4=true
         -D vmwgfx=true
-        ${CROSS+--cross /cross_file-$CROSS.txt}
     - ninja -C build
     - ninja -C build test
     - DESTDIR=$PWD/install ninja -C build install
@@ -83,34 +177,23 @@ debian:
     paths:
       - build/meson-logs/*
 
-meson-x86_64:
+# Full build and test.
+x86_64-debian-build:
   extends:
-    - .ci-run-policy
-    - .meson-build
-  image: $DEBIAN_IMAGE
-  needs:
-    - debian
+    - .build-env-debian-x86_64
+    - .do-build
 
-meson-i386:
-  extends: meson-x86_64
-  variables:
-    CROSS: i386
+aarch64-debian-build:
+  extends:
+    - .build-env-debian-aarch64
+    - .do-build
 
-meson-aarch64:
-  extends: meson-x86_64
-  variables:
-    CROSS: arm64
+armv7-debian-build:
+  extends:
+    - .build-env-debian-armv7
+    - .do-build
 
-meson-armhf:
-  extends: meson-x86_64
-  variables:
-    CROSS: armhf
-
-meson-ppc64el:
-  extends: meson-x86_64
-  variables:
-    CROSS: ppc64el
-
+# Daily build
 meson-arch-daily:
   rules:
     - if: '$SCHEDULE == "arch-daily"'
@@ -126,4 +209,4 @@ meson-arch-daily:
         meson
         valgrind
         python-docutils
-  extends: .meson-build
+  extends: .do-build
