@@ -19,6 +19,7 @@ include:
     ref: *template_sha
     file:
     - '/templates/debian.yml'
+    - '/templates/freebsd.yml'
     - '/templates/ci-fairy.yml'
 
 variables:
@@ -63,6 +64,21 @@ stages:
   variables:
     BUILD_ARCH: "armv7"
 
+.os-freebsd:
+  variables:
+    BUILD_OS: freebsd
+    FDO_DISTRIBUTION_VERSION: "13.0"
+    FDO_DISTRIBUTION_PACKAGES: 'meson ninja pkgconf libpciaccess libpthread-stubs py38-docutils cairo'
+    # bump this tag every time you change something which requires rebuilding the
+    # base image
+    FDO_DISTRIBUTION_TAG: "2021-11-10.1"
+
+.freebsd-x86_64:
+  extends:
+    - .os-freebsd
+  variables:
+    BUILD_ARCH: "x86_64"
+
 # Build our base container image, which contains the core distribution, the
 # toolchain, and all our build dependencies. This will be reused in the build
 # stage.
@@ -97,6 +113,15 @@ armv7-debian-container_prep:
   variables:
     GIT_STRATEGY: none
     FDO_BASE_IMAGE: "arm32v7/debian:$FDO_DISTRIBUTION_VERSION"
+
+x86_64-freebsd-container_prep:
+  extends:
+    - .ci-rules
+    - .freebsd-x86_64
+    - .fdo.qemu-build@freebsd@x86_64
+  stage: "Base container"
+  variables:
+    GIT_STRATEGY: none
 
 # Core build environment.
 .build-env:
@@ -142,6 +167,20 @@ armv7-debian-container_prep:
     - job: armv7-debian-container_prep
       artifacts: false
 
+.build-env-freebsd-x86_64:
+  variables:
+    # Compiling with ASan+UBSan appears to trigger an infinite loop in the
+    # compiler shipped with FreeBSD 13.0, so we only use UBSan here.
+    # Additionally, sanitizers can't be used with b_lundef on FreeBSD.
+    MESON_BUILD_TYPE: "-Dbuildtype=debug -Db_sanitize=undefined -Db_lundef=false"
+  extends:
+    - .fdo.suffixed-image@freebsd
+    - .freebsd-x86_64
+    - .build-env
+  needs:
+    - job: x86_64-freebsd-container_prep
+      artifacts: false
+
 # BUILD
 
 .do-build:
@@ -172,6 +211,30 @@ armv7-debian-container_prep:
     - ninja -C build
     - ninja -C build test
     - DESTDIR=$PWD/install ninja -C build install
+  artifacts:
+    when: on_failure
+    paths:
+      - build/meson-logs/*
+
+.do-build-qemu:
+  extends:
+    - .ci-rules
+  stage: "Build"
+  script:
+    # Start the VM and copy our workspace to the VM
+    - /app/vmctl start
+    - scp -r $PWD "vm:"
+    # The `set +e is needed to ensure that we always copy the meson logs back to
+    # the workspace to see details about the failed tests.
+    - |
+      set +e
+      /app/vmctl exec "pkg info; cd $CI_PROJECT_NAME ; meson build -D amdgpu=true -D cairo-tests=true -D intel=true -D libkms=true -D man-pages=true -D nouveau=false -D radeon=true -D valgrind=auto && ninja -C build"
+      set -ex
+      scp -r vm:$CI_PROJECT_NAME/build/meson-logs .
+      /app/vmctl exec "ninja -C $CI_PROJECT_NAME/build install"
+      mkdir -p $PREFIX && scp -r vm:$PREFIX/ $PREFIX/
+    # Finally, shut down the VM.
+    - /app/vmctl stop
   artifacts:
     when: on_failure
     paths:
@@ -210,3 +273,8 @@ meson-arch-daily:
         valgrind
         python-docutils
   extends: .do-build
+
+x86_64-freebsd-build:
+  extends:
+    - .build-env-freebsd-x86_64
+    - .do-build-qemu
