@@ -546,6 +546,19 @@ int amdgpu_device_initialize(int fd,
 */
 int amdgpu_device_deinitialize(amdgpu_device_handle device_handle);
 
+/**
+ *
+ * /param device_handle - \c [in] Device handle.
+ *                           See #amdgpu_device_initialize()
+ *
+ * \return Returns the drm fd used for operations on this
+ *         device. This is still owned by the library and hence
+ *         should not be closed. Guaranteed to be valid until
+ *         #amdgpu_device_deinitialize gets called.
+ *
+*/
+int amdgpu_device_get_fd(amdgpu_device_handle device_handle);
+
 /*
  * Memory Management
  *
