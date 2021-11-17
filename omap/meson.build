@@ -34,6 +34,10 @@ ext_libdrm_omap = declare_dependency(
   include_directories : [inc_drm, include_directories('.')],
 )
 
+if meson.version().version_compare('>= 0.54.0')
+  meson.override_dependency('libdrm_omap', ext_libdrm_omap)
+endif
+
 install_headers('omap_drmif.h', subdir : 'libdrm')
 install_headers('omap_drm.h', subdir : 'omap')
 

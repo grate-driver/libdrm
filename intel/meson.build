@@ -40,6 +40,10 @@ ext_libdrm_intel = declare_dependency(
   include_directories : [inc_drm, include_directories('.')],
 )
 
+if meson.version().version_compare('>= 0.54.0')
+  meson.override_dependency('libdrm_intel', ext_libdrm_intel)
+endif
+
 install_headers(
   'intel_bufmgr.h', 'intel_aub.h', 'intel_debug.h',
   subdir : 'libdrm',

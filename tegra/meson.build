@@ -34,6 +34,10 @@ ext_libdrm_tegra = declare_dependency(
   include_directories : [inc_drm, include_directories('.')],
 )
 
+if meson.version().version_compare('>= 0.54.0')
+  meson.override_dependency('libdrm_tegra', ext_libdrm_tegra)
+endif
+
 install_headers('tegra.h', subdir : 'libdrm')
 
 pkg.generate(

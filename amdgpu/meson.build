@@ -57,6 +57,10 @@ ext_libdrm_amdgpu = declare_dependency(
   include_directories : [inc_drm, include_directories('.')],
 )
 
+if meson.version().version_compare('>= 0.54.0')
+  meson.override_dependency('libdrm_amdgpu', ext_libdrm_amdgpu)
+endif
+
 test(
   'amdgpu-symbols-check',
   symbols_check,

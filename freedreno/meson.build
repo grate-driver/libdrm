@@ -55,6 +55,10 @@ ext_libdrm_freedreno = declare_dependency(
   include_directories : [inc_drm, include_directories('.')],
 )
 
+if meson.version().version_compare('>= 0.54.0')
+  meson.override_dependency('libdrm_freedreno', ext_libdrm_freedreno)
+endif
+
 install_headers(
   'freedreno_drmif.h', 'freedreno_ringbuffer.h',
   subdir : 'freedreno'

@@ -340,6 +340,10 @@ ext_libdrm = declare_dependency(
   include_directories : [inc_root, inc_drm],
 )
 
+if meson.version().version_compare('>= 0.54.0')
+  meson.override_dependency('libdrm', ext_libdrm)
+endif
+
 install_headers('libsync.h', 'xf86drm.h', 'xf86drmMode.h')
 install_headers(
   'include/drm/drm.h', 'include/drm/drm_fourcc.h', 'include/drm/drm_mode.h',

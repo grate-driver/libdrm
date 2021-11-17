@@ -41,6 +41,10 @@ ext_libdrm_radeon = declare_dependency(
   include_directories : [inc_drm, include_directories('.')],
 )
 
+if meson.version().version_compare('>= 0.54.0')
+  meson.override_dependency('libdrm_radeon', ext_libdrm_radeon)
+endif
+
 install_headers(
 	'radeon_bo.h', 'radeon_cs.h', 'radeon_surface.h', 'radeon_bo_gem.h',
 	'radeon_cs_gem.h', 'radeon_bo_int.h', 'radeon_cs_int.h', 'r600_pci_ids.h',

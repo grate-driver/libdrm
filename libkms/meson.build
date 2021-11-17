@@ -56,6 +56,10 @@ ext_libkms = declare_dependency(
   include_directories : [libkms_include],
 )
 
+if meson.version().version_compare('>= 0.54.0')
+  meson.override_dependency('kms', ext_libkms)
+endif
+
 install_headers('libkms.h', subdir : 'libkms')
 
 pkg.generate(
