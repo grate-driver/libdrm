@@ -1559,8 +1559,8 @@ drm_public int drmAddMap(int fd, drm_handle_t offset, drmSize size, drmMapType t
     memclear(map);
     map.offset  = offset;
     map.size    = size;
-    map.type    = type;
-    map.flags   = flags;
+    map.type    = (enum drm_map_type)type;
+    map.flags   = (enum drm_map_flags)flags;
     if (drmIoctl(fd, DRM_IOCTL_ADD_MAP, &map))
         return -errno;
     if (handle)
@@ -1604,7 +1604,7 @@ drm_public int drmAddBufs(int fd, int count, int size, drmBufDescFlags flags,
     memclear(request);
     request.count     = count;
     request.size      = size;
-    request.flags     = flags;
+    request.flags     = (int)flags;
     request.agp_start = agp_offset;
 
     if (drmIoctl(fd, DRM_IOCTL_ADD_BUFS, &request))
@@ -1888,7 +1888,7 @@ drm_public int drmDMA(int fd, drmDMAReqPtr request)
     dma.send_count      = request->send_count;
     dma.send_indices    = request->send_list;
     dma.send_sizes      = request->send_sizes;
-    dma.flags           = request->flags;
+    dma.flags           = (enum drm_dma_flags)request->flags;
     dma.request_count   = request->request_count;
     dma.request_size    = request->request_size;
     dma.request_indices = request->request_list;
@@ -2825,8 +2825,8 @@ drm_public int drmGetMap(int fd, int idx, drm_handle_t *offset, drmSize *size,
         return -errno;
     *offset = map.offset;
     *size   = map.size;
-    *type   = map.type;
-    *flags  = map.flags;
+    *type   = (drmMapType)map.type;
+    *flags  = (drmMapFlags)map.flags;
     *handle = (unsigned long)map.handle;
     *mtrr   = map.mtrr;
     return 0;
@@ -3377,8 +3377,9 @@ static char *drmGetMinorNameForFD(int fd, int type)
 
     while ((ent = readdir(sysdir))) {
         if (strncmp(ent->d_name, name, len) == 0) {
-            snprintf(dev_name, sizeof(dev_name), DRM_DIR_NAME "/%s",
-                 ent->d_name);
+            if (snprintf(dev_name, sizeof(dev_name), DRM_DIR_NAME "/%s",
+                        ent->d_name) < 0)
+                return NULL;
 
             closedir(sysdir);
             return strdup(dev_name);
@@ -3789,7 +3790,9 @@ static int parse_separate_sysfs_files(int maj, int min,
     get_pci_path(maj, min, pci_path);
 
     for (unsigned i = ignore_revision ? 1 : 0; i < ARRAY_SIZE(attrs); i++) {
-        snprintf(path, PATH_MAX, "%s/%s", pci_path, attrs[i]);
+        if (snprintf(path, PATH_MAX, "%s/%s", pci_path, attrs[i]) < 0)
+            return -errno;
+
         fp = fopen(path, "r");
         if (!fp)
             return -errno;
@@ -3819,7 +3822,9 @@ static int parse_config_sysfs_file(int maj, int min,
 
     get_pci_path(maj, min, pci_path);
 
-    snprintf(path, PATH_MAX, "%s/config", pci_path);
+    if (snprintf(path, PATH_MAX, "%s/config", pci_path) < 0)
+        return -errno;
+
     fd = open(path, O_RDONLY);
     if (fd < 0)
         return -errno;
