@@ -940,6 +940,21 @@ int amdgpu_cs_ctx_override_priority(amdgpu_device_handle dev,
                                     unsigned priority);
 
 /**
+ * Set or query the stable power state for GPU profiling.
+ *
+ * \param   dev        - \c [in] device handle
+ * \param   op         - \c [in] AMDGPU_CTX_OP_{GET,SET}_STABLE_PSTATE
+ * \param   flags      - \c [in] AMDGPU_CTX_STABLE_PSTATE_*
+ * \param   out_flags  - \c [out] output current stable pstate
+ *
+ * \return  0 on success otherwise POSIX Error code.
+ */
+int amdgpu_cs_ctx_stable_pstate(amdgpu_context_handle context,
+			        uint32_t op,
+			        uint32_t flags,
+			        uint32_t *out_flags);
+
+/**
  * Query reset state for the specific GPU Context
  *
  * \param   context - \c [in]  GPU Context handle
