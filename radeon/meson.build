@@ -29,6 +29,7 @@ libdrm_radeon = library(
     config_file,
   ],
   c_args : libdrm_c_args,
+  gnu_symbol_visibility : 'hidden',
   include_directories : [inc_root, inc_drm],
   link_with : libdrm,
   dependencies : [dep_pthread_stubs, dep_atomic_ops],

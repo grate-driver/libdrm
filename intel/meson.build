@@ -31,6 +31,7 @@ libdrm_intel = library(
   link_with : libdrm,
   dependencies : [dep_pciaccess, dep_pthread_stubs, dep_rt, dep_valgrind, dep_atomic_ops],
   c_args : libdrm_c_args,
+  gnu_symbol_visibility : 'hidden',
   version : '1.0.0',
   install : true,
 )
@@ -64,6 +65,7 @@ test_decode = executable(
   include_directories : [inc_root, inc_drm],
   link_with : [libdrm, libdrm_intel],
   c_args : libdrm_c_args,
+  gnu_symbol_visibility : 'hidden',
 )
 
 test(

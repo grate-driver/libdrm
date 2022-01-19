@@ -241,8 +241,8 @@ foreach a : ['unused-parameter', 'attributes', 'long-long',
 endforeach
 
 # all c args:
-libdrm_c_args = warn_c_args + ['-fvisibility=hidden']
 
+libdrm_c_args = warn_c_args
 
 dep_pciaccess = dependency('pciaccess', version : '>= 0.10', required : with_intel)
 dep_cunit = dependency('cunit', version : '>= 2.1', required : false)
@@ -323,6 +323,7 @@ libdrm = library(
   include_directories : inc_drm,
   install : true,
   kwargs : libdrm_kw,
+  gnu_symbol_visibility : 'hidden',
 )
 
 test(

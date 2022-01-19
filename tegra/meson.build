@@ -25,6 +25,7 @@ libdrm_tegra = library(
   link_with : libdrm,
   dependencies : [dep_pthread_stubs, dep_atomic_ops],
   c_args : libdrm_c_args,
+  gnu_symbol_visibility : 'hidden',
   version : '0.0.0',
   install : true,
 )

@@ -23,6 +23,7 @@ libdrm_omap = library(
   [files('omap_drm.c'), config_file],
   include_directories : [inc_root, inc_drm],
   c_args : libdrm_c_args,
+  gnu_symbol_visibility : 'hidden',
   link_with : libdrm,
   dependencies : [dep_pthread_stubs, dep_atomic_ops],
   version : '1.0.0',
