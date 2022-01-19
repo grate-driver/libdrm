@@ -347,10 +347,9 @@ if with_vmwgfx
 endif
 
 pkg.generate(
+  libdrm,
   name : 'libdrm',
-  libraries : libdrm,
   subdirs : ['.', 'libdrm'],
-  version : meson.project_version(),
   description : 'Userspace interface to kernel DRM services',
 )
 

@@ -63,11 +63,10 @@ endif
 install_headers('libkms.h', subdir : 'libkms')
 
 pkg.generate(
+  libkms,
   name : 'libkms',
-  libraries : libkms,
   subdirs : ['libkms'],
   version : '1.0.0',
-  requires_private : 'libdrm',
   description : 'Library that abstracts away the different mm interfaces for kernel drivers',
 )
 

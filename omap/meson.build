@@ -43,11 +43,10 @@ install_headers('omap_drmif.h', subdir : 'libdrm')
 install_headers('omap_drm.h', subdir : 'omap')
 
 pkg.generate(
+  libdrm_omap,
   name : 'libdrm_omap',
-  libraries : libdrm_omap,
   subdirs : ['.', 'libdrm', 'omap'],
   version : '0.6',
-  requires_private : 'libdrm',
   description : 'Userspace interface to omap kernel DRM services',
 )
 

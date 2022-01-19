@@ -44,11 +44,9 @@ libdrm_amdgpu = library(
 install_headers('amdgpu.h', subdir : 'libdrm')
 
 pkg.generate(
+  libdrm_amdgpu,
   name : 'libdrm_amdgpu',
-  libraries : libdrm_amdgpu,
   subdirs : ['.', 'libdrm'],
-  version : meson.project_version(),
-  requires_private : 'libdrm',
   description : 'Userspace interface to kernel DRM services for amdgpu',
 )
 

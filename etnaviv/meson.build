@@ -40,11 +40,9 @@ libdrm_etnaviv = library(
 install_headers('etnaviv_drmif.h', subdir : 'libdrm')
 
 pkg.generate(
+  libdrm_etnaviv,
   name : 'libdrm_etnaviv',
-  libraries : libdrm_etnaviv,
   subdirs : ['.', 'libdrm'],
-  version : meson.project_version(),
-  requires_private : 'libdrm',
   description : 'Userspace interface to Tegra kernel DRM services',
 )
 

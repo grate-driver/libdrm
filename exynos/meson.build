@@ -43,11 +43,10 @@ if meson.version().version_compare('>= 0.54.0')
 endif
 
 pkg.generate(
+  libdrm_exynos,
   name : 'libdrm_exynos',
-  libraries : libdrm_exynos,
   subdirs : ['.', 'libdrm', 'exynos'],
   version : '0.7',
-  requires_private : 'libdrm',
   description : 'Userspace interface to exynos kernel DRM services',
 )
 

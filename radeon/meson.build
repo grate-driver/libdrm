@@ -53,11 +53,9 @@ install_headers(
 )
 
 pkg.generate(
+  libdrm_radeon,
   name : 'libdrm_radeon',
-  libraries : libdrm_radeon,
   subdirs : ['.', 'libdrm'],
-  version : meson.project_version(),
-  requires_private : 'libdrm',
   description : 'Userspace interface to kernel DRM services for radeon',
 )
 

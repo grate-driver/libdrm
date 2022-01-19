@@ -51,10 +51,9 @@ install_headers(
 )
 
 pkg.generate(
+  libdrm_intel,
   name : 'libdrm_intel',
-  libraries : libdrm_intel,
   subdirs : ['.', 'libdrm'],
-  version : meson.project_version(),
   requires : 'libdrm',
   description : 'Userspace interface to intel kernel DRM services',
 )

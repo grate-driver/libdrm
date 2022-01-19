@@ -42,11 +42,9 @@ endif
 install_headers('tegra.h', subdir : 'libdrm')
 
 pkg.generate(
+  libdrm_tegra,
   name : 'libdrm_tegra',
-  libraries : libdrm_tegra,
   subdirs : ['.', 'libdrm'],
-  version : meson.project_version(),
-  requires_private : 'libdrm',
   description : 'Userspace interface to Tegra kernel DRM services',
 )
 
