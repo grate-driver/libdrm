@@ -54,8 +54,10 @@ intel_atomics = false
 lib_atomics = false
 
 python3 = import('python').find_installation()
-format_mod_static_table = custom_target('format_mod_static_table',
-  output : 'generated_static_table_fourcc.h', input: 'include/drm/drm_fourcc.h',
+format_mod_static_table = custom_target(
+  'format_mod_static_table',
+  output : 'generated_static_table_fourcc.h',
+  input : 'include/drm/drm_fourcc.h',
   command : [python3, files('gen_table_fourcc.py'), '@INPUT@', '@OUTPUT@'])
 
 dep_atomic_ops = dependency('atomic_ops', required : false)
