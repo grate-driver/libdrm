@@ -23,7 +23,7 @@ project(
   ['c'],
   version : '2.4.109',
   license : 'MIT',
-  meson_version : '>= 0.48',
+  meson_version : '>= 0.52',
   default_options : ['buildtype=debugoptimized', 'c_std=c99'],
 )
 
@@ -257,9 +257,7 @@ with_man_pages = get_option('man-pages')
 prog_rst2man = find_program('rst2man', 'rst2man.py', required: with_man_pages == 'true')
 with_man_pages = with_man_pages != 'false' and prog_rst2man.found()
 
-config.set10('HAVE_VISIBILITY',
-  cc.compiles('''int foo_hidden(void) __attribute__((visibility(("hidden"))));''',
-              name : 'compiler supports __attribute__(("hidden"))'))
+config.set10('HAVE_VISIBILITY', cc.has_function_attribute('visibility:hidden'))
 
 foreach t : [
              [with_exynos, 'EXYNOS'],
