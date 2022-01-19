@@ -23,7 +23,7 @@ project(
   ['c'],
   version : '2.4.109',
   license : 'MIT',
-  meson_version : '>= 0.46',
+  meson_version : '>= 0.48',
   default_options : ['buildtype=debugoptimized', 'c_std=c99'],
 )
 
@@ -219,30 +219,15 @@ if (cc.has_header_symbol('sys/mkdev.h', 'major') and
 endif
 config.set10('HAVE_OPEN_MEMSTREAM', cc.has_function('open_memstream'))
 
-warn_c_args = []
-foreach a : ['-Wall', '-Wextra', '-Wsign-compare', '-Werror=undef',
-             '-Werror=implicit-function-declaration', '-Wpointer-arith',
-             '-Wwrite-strings', '-Wstrict-prototypes', '-Wmissing-prototypes',
-             '-Wmissing-declarations', '-Wnested-externs', '-Wpacked',
-             '-Wswitch-enum', '-Wmissing-format-attribute',
-             '-Wstrict-aliasing=2', '-Winit-self', '-Winline', '-Wshadow',
-             '-Wdeclaration-after-statement', '-Wold-style-definition']
-  if cc.has_argument(a)
-    warn_c_args += a
-  endif
-endforeach
-# GCC will never error for -Wno-*, so check for -W* then add -Wno-* to the list
-# of options
-foreach a : ['unused-parameter', 'attributes', 'long-long',
-             'missing-field-initializers']
-  if cc.has_argument('-W@0@'.format(a))
-    warn_c_args += '-Wno-@0@'.format(a)
-  endif
-endforeach
-
-# all c args:
-
-libdrm_c_args = warn_c_args
+libdrm_c_args = cc.get_supported_arguments([
+  '-Wsign-compare', '-Werror=undef', '-Werror=implicit-function-declaration',
+  '-Wpointer-arith', '-Wwrite-strings', '-Wstrict-prototypes',
+  '-Wmissing-prototypes', '-Wmissing-declarations', '-Wnested-externs',
+  '-Wpacked', '-Wswitch-enum', '-Wmissing-format-attribute',
+  '-Wstrict-aliasing=2', '-Winit-self', '-Winline', '-Wshadow',
+  '-Wdeclaration-after-statement', '-Wold-style-definition',
+  '-Wno-unused-parameter', '-Wno-attributes', '-Wno-long-long',
+  '-Wno-missing-field-initializers'])
 
 dep_pciaccess = dependency('pciaccess', version : '>= 0.10', required : with_intel)
 dep_cunit = dependency('cunit', version : '>= 2.1', required : false)
