@@ -23,7 +23,7 @@ project(
   ['c'],
   version : '2.4.109',
   license : 'MIT',
-  meson_version : '>= 0.52',
+  meson_version : '>= 0.53',
   default_options : ['buildtype=debugoptimized', 'c_std=c99'],
 )
 
@@ -91,6 +91,7 @@ if _intel != 'false'
     with_intel = _intel == 'true' or host_machine.cpu_family().startswith('x86')
   endif
 endif
+summary('Intel', with_intel)
 
 with_radeon = false
 _radeon = get_option('radeon')
@@ -100,6 +101,7 @@ if _radeon != 'false'
   endif
   with_radeon = true
 endif
+summary('Radeon', with_radeon)
 
 with_amdgpu = false
 _amdgpu = get_option('amdgpu')
@@ -109,6 +111,7 @@ if _amdgpu != 'false'
   endif
   with_amdgpu = true
 endif
+summary('AMDGPU', with_amdgpu)
 
 with_nouveau = false
 _nouveau = get_option('nouveau')
@@ -118,12 +121,14 @@ if _nouveau != 'false'
   endif
   with_nouveau = true
 endif
+summary('Nouveau', with_nouveau)
 
 with_vmwgfx = false
 _vmwgfx = get_option('vmwgfx')
 if _vmwgfx != 'false'
   with_vmwgfx = true
 endif
+summary('vmwgfx', with_vmwgfx)
 
 with_omap = false
 _omap = get_option('omap')
@@ -133,6 +138,7 @@ if _omap == 'true'
   endif
   with_omap = true
 endif
+summary('OMAP', with_omap)
 
 with_freedreno = false
 _freedreno = get_option('freedreno')
@@ -143,6 +149,8 @@ if _freedreno != 'false'
     with_freedreno = _freedreno == 'true' or ['arm', 'aarch64'].contains(host_machine.cpu_family())
   endif
 endif
+summary('Freedreno', with_freedreno)
+summary('Freedreon-kgsl', with_freedreno_kgsl)
 
 with_tegra = false
 _tegra = get_option('tegra')
@@ -152,6 +160,7 @@ if _tegra == 'true'
   endif
   with_tegra = true
 endif
+summary('Tegra', with_tegra)
 
 with_etnaviv = false
 _etnaviv = get_option('etnaviv')
@@ -161,14 +170,17 @@ if _etnaviv == 'true'
   endif
   with_etnaviv = true
 endif
+summary('Etnaviv', with_etnaviv)
 
 with_exynos = get_option('exynos') == 'true'
+summary('EXYNOS', with_exynos)
 
 with_vc4 = false
 _vc4 = get_option('vc4')
 if _vc4 != 'false'
   with_vc4 = _vc4 == 'true' or ['arm', 'aarch64'].contains(host_machine.cpu_family())
 endif
+summary('VC4', with_vc4)
 
 # XXX: Apparently only freebsd and dragonfly bsd actually need this (and
 # gnu/kfreebsd), not openbsd and netbsd
@@ -177,6 +189,7 @@ _libkms = get_option('libkms')
 if _libkms != 'false'
   with_libkms = _libkms == 'true' or (['linux', 'freebsd', 'dragonfly'].contains(host_machine.system()) and not android)
 endif
+summary('libkms', with_libkms)
 
 # Among others FreeBSD does not have a separate dl library.
 if not cc.has_function('dlsym')
@@ -391,20 +404,3 @@ if with_man_pages
 endif
 subdir('data')
 subdir('tests')
-
-message('')
-message('@0@ will be compiled with:'.format(meson.project_name()))
-message('')
-message('  libkms         @0@'.format(with_libkms))
-message('  Intel API      @0@'.format(with_intel))
-message('  vmwgfx API     @0@'.format(with_vmwgfx))
-message('  Radeon API     @0@'.format(with_radeon))
-message('  AMDGPU API     @0@'.format(with_amdgpu))
-message('  Nouveau API    @0@'.format(with_nouveau))
-message('  OMAP API       @0@'.format(with_omap))
-message('  EXYNOS API     @0@'.format(with_exynos))
-message('  Freedreno API  @0@ (kgsl: @1@)'.format(with_freedreno, with_freedreno_kgsl))
-message('  Tegra API      @0@'.format(with_tegra))
-message('  VC4 API        @0@'.format(with_vc4))
-message('  Etnaviv API    @0@'.format(with_etnaviv))
-message('')
