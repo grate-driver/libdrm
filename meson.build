@@ -205,8 +205,7 @@ else
 endif
 
 foreach header : ['sys/select.h', 'alloca.h']
-  config.set10('HAVE_' + header.underscorify().to_upper(),
-    cc.compiles('#include <@0@>'.format(header), name : '@0@ works'.format(header)))
+  config.set10('HAVE_' + header.underscorify().to_upper(), cc.check_header(header))
 endforeach
 
 if (cc.has_header_symbol('sys/sysmacros.h', 'major') and
