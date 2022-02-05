@@ -33,7 +33,7 @@
 
 #include "private.h"
 
-int drm_tegra_fence_wait_timeout(struct drm_tegra_fence *fence,
+drm_public int drm_tegra_fence_wait_timeout(struct drm_tegra_fence *fence,
 				 unsigned long timeout)
 {
 	struct drm_tegra_syncpt_wait args;
@@ -50,7 +50,7 @@ int drm_tegra_fence_wait_timeout(struct drm_tegra_fence *fence,
 				   &args, sizeof(args));
 }
 
-void drm_tegra_fence_free(struct drm_tegra_fence *fence)
+drm_public void drm_tegra_fence_free(struct drm_tegra_fence *fence)
 {
 	free(fence);
 }

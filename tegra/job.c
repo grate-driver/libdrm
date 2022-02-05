@@ -73,6 +73,7 @@ int drm_tegra_job_add_cmdbuf(struct drm_tegra_job *job,
 	return 0;
 }
 
+drm_public
 int drm_tegra_job_new(struct drm_tegra_job **jobp,
 		      struct drm_tegra_channel *channel)
 {
@@ -94,6 +95,7 @@ int drm_tegra_job_new(struct drm_tegra_job **jobp,
 	return 0;
 }
 
+drm_public
 int drm_tegra_job_free(struct drm_tegra_job *job)
 {
 	struct drm_tegra_pushbuf_private *pushbuf;
@@ -112,6 +114,7 @@ int drm_tegra_job_free(struct drm_tegra_job *job)
 	return 0;
 }
 
+drm_public
 int drm_tegra_job_submit(struct drm_tegra_job *job,
 			 struct drm_tegra_fence **fencep)
 {

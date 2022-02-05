@@ -718,7 +718,7 @@ drm_public int drm_tegra_bo_set_tiling(struct drm_tegra_bo *bo,
 	return 0;
 }
 
-int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
+drm_public int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
 {
 	if (!bo || !name)
 		return -EINVAL;
@@ -752,8 +752,8 @@ int drm_tegra_bo_get_name(struct drm_tegra_bo *bo, uint32_t *name)
 	return 0;
 }
 
-int drm_tegra_bo_from_name(struct drm_tegra_bo **bop, struct drm_tegra *drm,
-			   uint32_t name, uint32_t flags)
+drm_public int drm_tegra_bo_from_name(struct drm_tegra_bo **bop,
+			   struct drm_tegra *drm, uint32_t name, uint32_t flags)
 {
 	struct drm_gem_open args;
 	struct drm_tegra_bo *dup;

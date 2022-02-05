@@ -71,6 +71,7 @@ int drm_tegra_pushbuf_queue(struct drm_tegra_pushbuf_private *pushbuf)
 	return 0;
 }
 
+drm_public
 int drm_tegra_pushbuf_new(struct drm_tegra_pushbuf **pushbufp,
 			  struct drm_tegra_job *job)
 {
@@ -95,6 +96,7 @@ int drm_tegra_pushbuf_new(struct drm_tegra_pushbuf **pushbufp,
 	return 0;
 }
 
+drm_public
 int drm_tegra_pushbuf_free(struct drm_tegra_pushbuf *pushbuf)
 {
 	struct drm_tegra_pushbuf_private *priv;
@@ -122,6 +124,7 @@ int drm_tegra_pushbuf_free(struct drm_tegra_pushbuf *pushbuf)
  * @pushbuf: push buffer
  * @words: maximum number of words in series of pushes to follow
  */
+drm_public
 int drm_tegra_pushbuf_prepare(struct drm_tegra_pushbuf *pushbuf,
 			      unsigned int words)
 {
@@ -173,6 +176,7 @@ int drm_tegra_pushbuf_prepare(struct drm_tegra_pushbuf *pushbuf,
 	return 0;
 }
 
+drm_public
 int drm_tegra_pushbuf_relocate(struct drm_tegra_pushbuf *pushbuf,
 			       struct drm_tegra_bo *target,
 			       unsigned long offset,
@@ -206,6 +210,7 @@ int drm_tegra_pushbuf_relocate(struct drm_tegra_pushbuf *pushbuf,
 	return 0;
 }
 
+drm_public
 int drm_tegra_pushbuf_sync(struct drm_tegra_pushbuf *pushbuf,
 			   enum drm_tegra_syncpt_cond cond)
 {
